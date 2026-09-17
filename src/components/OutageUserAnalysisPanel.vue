@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import {
   queryOutageAnalysisImpactDailyTrend,
-  queryOutageAnalysisWarningCounts,
+  queryOutageAnalysisWarningDailyTrend,
   queryOutageUserAnalysisOverview,
 } from '../api/outage'
 import StackedBarChart from './StackedBarChart.vue'
@@ -77,8 +77,9 @@ const selectedRange = ref('sevenDays')
 const rangeEndTime = ref('')
 const historyDialogOpen = ref(false)
 const historyBeginInput = ref('')
+const historyEndInput = ref('')
 const historyMinDate = ref('')
-const historyMaxStartDate = ref('')
+const historyMaxDate = ref('')
 const historyRange = ref(null)
 const historyValidationError = ref('')
 
@@ -150,11 +151,10 @@ const openHistoryDialog = () => {
   const now = new Date()
   const lowerBound = subtractOneMonth(now)
   lowerBound.setHours(0, 0, 0, 0)
-  const latestStart = addDays(now, -6)
-  latestStart.setHours(0, 0, 0, 0)
   historyMinDate.value = formatDateInput(lowerBound)
-  historyMaxStartDate.value = formatDateInput(latestStart)
-  historyBeginInput.value = historyRange.value?.beginInput || historyMaxStartDate.value
+  historyMaxDate.value = formatDateInput(now)
+  historyBeginInput.value = historyRange.value?.beginInput || formatDateInput(addDays(now, -6))
+  historyEndInput.value = historyRange.value?.endInput || historyMaxDate.value
   historyValidationError.value = ''
   historyDialogOpen.value = true
 }
@@ -165,46 +165,64 @@ const closeHistoryDialog = () => {
 }
 
 const resetHistoryRange = () => {
-  historyBeginInput.value = historyMaxStartDate.value
+  const latestEnd = parseDateInput(historyMaxDate.value)
+  historyBeginInput.value = latestEnd ? formatDateInput(addDays(latestEnd, -6)) : ''
+  historyEndInput.value = historyMaxDate.value
   historyValidationError.value = ''
 }
 
-const historyEndDisplay = computed(() => {
-  const beginTime = parseDateInput(historyBeginInput.value)
-  return beginTime ? formatDateInput(addDays(beginTime, 6)) : ''
-})
-
-const showHistoryValidation = (message, usePopup = false) => {
+const showHistoryValidation = (message) => {
   historyValidationError.value = message
-  if (usePopup && typeof window !== 'undefined') {
-    window.alert(message)
-  }
 }
 
+const validateHistoryRange = () => {
+  if (!historyBeginInput.value || !historyEndInput.value) {
+    return '请选择历史查询的开始日期和结束日期'
+  }
+  const beginTime = parseDateInput(historyBeginInput.value)
+  const endTime = parseDateInput(historyEndInput.value)
+  const lowerBound = parseDateInput(historyMinDate.value)
+  const upperBound = parseDateInput(historyMaxDate.value)
+  if (!beginTime || !endTime || !lowerBound || !upperBound) {
+    return '时间格式不正确，请重新选择'
+  }
+  if (beginTime < lowerBound || endTime < lowerBound) {
+    return '开始日期和结束日期都必须在距本日最近一个月内'
+  }
+  if (beginTime > upperBound || endTime > upperBound) {
+    return '开始日期和结束日期不能晚于本日'
+  }
+  if (beginTime > endTime) {
+    return '结束日期不能早于开始日期'
+  }
+  if ((endTime - beginTime) / 86400000 + 1 < 7) {
+    return '右侧历史查询至少需要选择连续7个自然日'
+  }
+  return ''
+}
+
+watch([historyBeginInput, historyEndInput], () => {
+  if (!historyDialogOpen.value) {
+    return
+  }
+  historyValidationError.value = (
+    historyBeginInput.value && historyEndInput.value
+      ? validateHistoryRange()
+      : ''
+  )
+})
+
 const confirmHistoryRange = () => {
-  if (!historyBeginInput.value) {
-    showHistoryValidation('请选择历史查询的开始日期')
+  const validationError = validateHistoryRange()
+  if (validationError) {
+    showHistoryValidation(validationError)
     return
   }
 
   const beginTime = parseDateInput(historyBeginInput.value)
-  const lowerBound = parseDateInput(historyMinDate.value)
-  const latestStart = parseDateInput(historyMaxStartDate.value)
-  if (!beginTime || !lowerBound || !latestStart) {
-    showHistoryValidation('时间格式不正确，请重新选择')
-    return
-  }
-  if (beginTime < lowerBound) {
-    showHistoryValidation('仅可查询距离本日最近一个月内的数据')
-    return
-  }
-  if (beginTime > latestStart) {
-    showHistoryValidation('历史查询必须选择完整的7天时间范围', true)
-    return
-  }
+  const endTime = parseDateInput(historyEndInput.value)
 
   beginTime.setHours(0, 0, 0, 0)
-  const endTime = addDays(beginTime, 6)
   const now = new Date()
   if (formatDateInput(endTime) === formatDateInput(now)) {
     endTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 0)
@@ -214,6 +232,9 @@ const confirmHistoryRange = () => {
 
   historyRange.value = {
     beginInput: historyBeginInput.value,
+    endInput: historyEndInput.value,
+    beginDate: formatDateInput(beginTime),
+    endDate: formatDateInput(endTime),
     beginTime: formatApiDateTime(beginTime),
     endTime: formatApiDateTime(endTime),
   }
@@ -251,25 +272,11 @@ const buildQueryPayload = () => {
   }
 }
 
-const buildAnalysisPayload = (includeHistoryDays = false) => {
+const applyScope = (payload) => {
   const cityId = String(props.cityId || '').trim()
   const countyId = String(props.countyId || '').trim()
   if (!cityId && !countyId) {
     return null
-  }
-
-  const payload = { rangeType: selectedRange.value }
-  if (selectedRange.value === 'history') {
-    if (!historyRange.value) {
-      return null
-    }
-    payload.beginTime = historyRange.value.beginTime
-    payload.endTime = historyRange.value.endTime
-    if (includeHistoryDays) {
-      payload.historyDays = 7
-    }
-  } else {
-    payload.endTime = rangeEndTime.value
   }
 
   if (countyId) {
@@ -278,6 +285,35 @@ const buildAnalysisPayload = (includeHistoryDays = false) => {
     payload.cityId = cityId
   }
   return payload
+}
+
+const buildImpactPayload = () => {
+  const payload = { rangeType: selectedRange.value }
+  if (selectedRange.value === 'history') {
+    if (!historyRange.value) {
+      return null
+    }
+    payload.beginTime = historyRange.value.beginTime
+    payload.endTime = historyRange.value.endTime
+  } else {
+    payload.endTime = rangeEndTime.value
+  }
+
+  return applyScope(payload)
+}
+
+const buildWarningPayload = () => {
+  const payload = { rangeType: selectedRange.value }
+  if (selectedRange.value === 'history') {
+    if (!historyRange.value) {
+      return null
+    }
+    payload.beginDate = historyRange.value.beginDate
+    payload.endDate = historyRange.value.endDate
+  } else {
+    payload.endDate = formatDateInput(new Date())
+  }
+  return applyScope(payload)
 }
 
 const normalizeChart = (source, fallback, rootLabels = []) => {
@@ -351,7 +387,7 @@ const loadPanelData = async () => {
 
 const loadWarningCounts = async () => {
   const currentRequestId = ++warningRequestId
-  const payload = buildAnalysisPayload(true)
+  const payload = buildWarningPayload()
   warningChartData.value = buildWarningChart()
   warningLoadError.value = ''
   if (!payload) {
@@ -361,7 +397,7 @@ const loadWarningCounts = async () => {
 
   warningLoading.value = true
   try {
-    const response = await queryOutageAnalysisWarningCounts(payload)
+    const response = await queryOutageAnalysisWarningDailyTrend(payload)
     if (currentRequestId !== warningRequestId) {
       return
     }
@@ -385,7 +421,7 @@ const loadWarningCounts = async () => {
 
 const loadImpactDailyTrend = async () => {
   const currentRequestId = ++impactRequestId
-  const payload = buildAnalysisPayload()
+  const payload = buildImpactPayload()
   impactChartData.value = buildImpactChart()
   impactLoadError.value = ''
   if (!payload) {
@@ -430,8 +466,8 @@ watch(
     selectedRange,
     () => props.cityId,
     () => props.countyId,
-    () => historyRange.value?.beginTime,
-    () => historyRange.value?.endTime,
+    () => historyRange.value?.beginDate,
+    () => historyRange.value?.endDate,
   ],
   () => {
     if (selectedRange.value !== 'history') {
@@ -524,11 +560,11 @@ watch(
         aria-labelledby="analysis-history-dialog-title"
       >
         <header class="analysis-history-dialog-header">
-          <h3 id="analysis-history-dialog-title">选择历史开始日期</h3>
+          <h3 id="analysis-history-dialog-title">选择历史日期范围</h3>
           <button type="button" aria-label="关闭" @click="closeHistoryDialog">×</button>
         </header>
         <div class="analysis-history-dialog-body">
-          <p>仅可查询最近一个月内的数据，系统将从开始日期起固定查询连续7个自然日</p>
+          <p>仅可查询最近一个月内的数据，可选择7天、8天或更长区间，至少选择7个自然日</p>
           <div class="analysis-history-time-range">
             <label>
               <span>开始日期</span>
@@ -536,13 +572,18 @@ watch(
                 v-model="historyBeginInput"
                 type="date"
                 :min="historyMinDate"
-                :max="historyMaxStartDate"
+                :max="historyMaxDate"
               />
             </label>
             <i aria-hidden="true">至</i>
             <label>
-              <span>结束日期（自动计算）</span>
-              <output>{{ historyEndDisplay || '请选择开始日期' }}</output>
+              <span>结束日期</span>
+              <input
+                v-model="historyEndInput"
+                type="date"
+                :min="historyMinDate"
+                :max="historyMaxDate"
+              />
             </label>
           </div>
           <p v-if="historyValidationError" class="analysis-history-error" role="alert">
@@ -827,8 +868,7 @@ watch(
   font-size: 13px;
 }
 
-.analysis-history-time-range input,
-.analysis-history-time-range output {
+.analysis-history-time-range input {
   width: 100%;
   height: 40px;
   box-sizing: border-box;
@@ -838,14 +878,8 @@ watch(
   color: #455457;
   background: #fff;
   font: inherit;
+  font-weight: 700;
   outline: none;
-}
-
-.analysis-history-time-range output {
-  display: flex;
-  align-items: center;
-  color: #59686b;
-  background: #f4f8f7;
 }
 
 .analysis-history-time-range input:focus {

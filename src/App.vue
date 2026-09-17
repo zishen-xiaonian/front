@@ -51,7 +51,6 @@ import UserPersonalInfoPanel from './components/UserPersonalInfoPanel.vue'
 import EmotionEvolutionAnalysisPanel from './components/EmotionEvolutionAnalysisPanel.vue'
 import IntelligentWarningPanel from './components/IntelligentWarningPanel.vue'
 import ReplyAssistantPanel from './components/ReplyAssistantPanel.vue'
-import SensitiveDemandWorkOrderStatsCard from './components/SensitiveDemandWorkOrderStatsCard.vue'
 import OutageUserAnalysisPanel from './components/OutageUserAnalysisPanel.vue'
 import OutageAnalysisMapControls from './components/OutageAnalysisMapControls.vue'
 import OutageUserOverviewPanel from './components/OutageUserOverviewPanel.vue'
@@ -8342,8 +8341,6 @@ onBeforeUnmount(() => {
                     </div>
                   </div>
                 </section>
-
-                <SensitiveDemandWorkOrderStatsCard />
 
                 <section
                   class="sensitive-demand-module sensitive-demand-auto-module"

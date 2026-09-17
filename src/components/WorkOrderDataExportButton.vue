@@ -10,11 +10,11 @@ const props = defineProps({
   },
   filename: {
     type: String,
-    default: '95598工单统计.xlsx',
+    default: '数据导出.xlsx',
   },
   sheetName: {
     type: String,
-    default: '95598工单统计',
+    default: '数据导出',
   },
 })
 
