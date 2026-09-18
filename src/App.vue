@@ -27,9 +27,6 @@ import {
   querySensitiveAppealEmotionEvolution,
   querySensitiveAppealIntelligentReceipt,
   querySensitiveAppealIntelligentWarning,
-  querySensitiveAppealKeyUserDetail,
-  querySensitiveAppealKeyUserTypeCount,
-  querySensitiveAppealKeyUsers,
   querySensitiveAppealSensitiveUserDetail,
   querySensitiveAppealSensitiveUserTypeCount,
   querySensitiveAppealSensitiveUsers,
@@ -38,7 +35,6 @@ import {
   querySensitiveAppealSpecialUsers,
   querySensitiveAppealTypeTop5,
   querySensitiveAppealUserAppeals,
-  querySensitiveAppealUserTypeCount,
 } from './api/sensitiveAppeals'
 import UserTagModuleCard from './components/UserTagModuleCard.vue'
 import KeyUserTimeTrendCard from './components/KeyUserTimeTrendCard.vue'
@@ -4399,28 +4395,11 @@ const sensitiveDemandAppealTypeMeta = [
 ]
 
 const SENSITIVE_DEMAND_USER_TAG_COLORS = {
-  important: '#35cfff',
   sensitive: '#ff5b7d',
   special: '#ffd23f',
 }
 
-const sensitiveDemandUserTagMeta = [
-  { key: 'important', label: '重要客户', color: SENSITIVE_DEMAND_USER_TAG_COLORS.important },
-  { key: 'sensitive', label: '敏感客户', color: SENSITIVE_DEMAND_USER_TAG_COLORS.sensitive },
-  { key: 'special', label: '特殊客户', color: SENSITIVE_DEMAND_USER_TAG_COLORS.special },
-]
-
 const sensitiveDemandAutoDetailMeta = [
-  {
-    key: 'important',
-    label: '重要客户',
-    color: SENSITIVE_DEMAND_USER_TAG_COLORS.important,
-    typeCountQuery: querySensitiveAppealKeyUserTypeCount,
-    listQuery: querySensitiveAppealKeyUsers,
-    detailQuery: querySensitiveAppealKeyUserDetail,
-    typeNameField: 'impt_cust_type_name',
-    filterField: 'impt_cust_type_name',
-  },
   {
     key: 'sensitive',
     label: '敏感客户',
@@ -4444,34 +4423,53 @@ const sensitiveDemandAutoDetailMeta = [
 ]
 
 const sensitiveDemandUserTypeFieldMeta = {
-  important: [
-    { key: 'medical', field: 'medical_cnt', fieldAliases: ['医疗卫生类客户'], label: '医疗卫生类客户', color: SENSITIVE_DEMAND_USER_TAG_COLORS.important },
-    { key: 'education', field: 'education_cnt', fieldAliases: ['教育机构类客户'], label: '教育机构类客户', color: '#1769ff' },
-    { key: 'gov', field: 'gov_cnt', fieldAliases: ['党政机关类客户'], label: '党政机关类客户', color: '#00f2a9' },
-    { key: 'comuni', field: 'comuni_cnt', fieldAliases: ['信息通信类客户'], label: '信息通信类客户', color: '#9b5cff' },
-    { key: 'water', field: 'water_cnt', fieldAliases: ['城市供水类客户'], label: '城市供水类客户', color: '#0080a8' },
-    { key: 'heat', field: 'heat_cnt', fieldAliases: ['城市供热类客户'], label: '城市供热类客户', color: '#ff8a00' },
-    { key: 'gas', field: 'gas_cnt', fieldAliases: ['城市燃气类客户'], label: '城市燃气类客户', color: '#b84cff' },
-    { key: 'traffic', field: 'traffic_cnt', fieldAliases: ['交通运输类客户'], label: '交通运输类客户', color: '#8bdc2f' },
-  ],
   sensitive: [
-    { key: 'medium', field: '中度敏感客户', fieldAliases: ['type1_cnt'], label: '中度敏感客户', color: SENSITIVE_DEMAND_USER_TAG_COLORS.sensitive },
-    { key: 'extreme', field: '极端敏感客户', fieldAliases: ['type2_cnt'], label: '极端敏感客户', color: '#ff8a00' },
-    { key: 'light', field: '轻度敏感客户', fieldAliases: ['type3_cnt'], label: '轻度敏感客户', color: '#b84cff' },
-    { key: 'high', field: '高度敏感客户', fieldAliases: ['type4_cnt'], label: '高度敏感客户', color: '#ff2bb3' },
+    { key: 'light', field: '轻度敏感客户', fieldAliases: ['type3_cnt'], label: '轻度敏感客户', chartLabel: '轻度敏感', filterValue: '轻度敏感客户', color: '#b84cff' },
+    { key: 'medium', field: '中度敏感客户', fieldAliases: ['type1_cnt'], label: '中度敏感客户', chartLabel: '中度敏感', filterValue: '中度敏感客户', color: SENSITIVE_DEMAND_USER_TAG_COLORS.sensitive },
+    { key: 'high', field: '高度敏感客户', fieldAliases: ['type4_cnt'], label: '高度敏感客户', chartLabel: '高度敏感', filterValue: '高度敏感客户', color: '#ff2bb3' },
+    { key: 'extreme', field: '极端敏感客户', fieldAliases: ['type2_cnt'], label: '极端敏感客户', chartLabel: '极端敏感', filterValue: '极端敏感客户', color: '#ff8a00' },
   ],
   special: [
-    { key: 'unreasonable', field: '不合理诉求客户', fieldAliases: ['unreasonable_appeal_cnt', 'unreasonable_appeal'], label: '不合理诉求客户', color: SENSITIVE_DEMAND_USER_TAG_COLORS.special },
-    { key: 'other', field: '其他类客户', fieldAliases: ['other_special_customer_cnt', 'other_special_customer'], label: '其他类客户', color: '#ff7a00' },
-    { key: 'malicious', field: '恶意诉求客户', fieldAliases: ['malicious_appeal_cnt', 'malicious_appeal'], label: '恶意诉求客户', color: '#8bdc2f' },
-    { key: 'arrears', field: '拖欠电费客户', fieldAliases: ['electricity_arrears_cnt', 'electricity_arrears'], label: '拖欠电费客户', color: '#d14b9f' },
-    { key: 'suspected', field: '疑似套取信息客户', fieldAliases: ['suspected_information_extraction_cnt', 'suspected_information_extraction'], label: '疑似套取信息客户', color: '#35cfff' },
-    { key: 'theft', field: '窃电或违约用电客户', fieldAliases: ['electricity_theft_or_breach_cnt', 'electricity_theft_or_breach'], label: '窃电或违约用电客户', color: '#9b5cff' },
-    { key: 'harassing', field: '骚扰来电客户', fieldAliases: ['harassing_call_cnt', 'harassing_call'], label: '骚扰来电客户', color: '#67f5a6' },
+    { key: 'unreasonable', field: '不合理诉求客户', fieldAliases: ['unreasonable_appeal_cnt', 'unreasonable_appeal'], label: '不合理诉求客户', chartLabel: '不合理诉求', filterValue: '不合理诉求客户', color: SENSITIVE_DEMAND_USER_TAG_COLORS.special },
+    { key: 'other', field: '其他类客户', fieldAliases: ['other_special_customer_cnt', 'other_special_customer'], label: '其他类客户', chartLabel: '其他类', filterValue: '其他类客户', color: '#ff7a00' },
+    { key: 'malicious', field: '恶意诉求客户', fieldAliases: ['malicious_appeal_cnt', 'malicious_appeal'], label: '恶意诉求客户', chartLabel: '恶意诉求', filterValue: '恶意诉求客户', color: '#8bdc2f' },
+    { key: 'arrears', field: '拖欠电费客户', fieldAliases: ['electricity_arrears_cnt', 'electricity_arrears'], label: '拖欠电费客户', chartLabel: '拖欠电费', filterValue: '拖欠电费客户', color: '#d14b9f' },
+    { key: 'suspected', field: '疑似套取信息客户', fieldAliases: ['suspected_information_extraction_cnt', 'suspected_information_extraction'], label: '疑似套取信息客户', chartLabel: '疑似套取信息', filterValue: '疑似套取信息客户', color: '#35cfff' },
+    { key: 'theft', field: '窃电或违约用电客户', fieldAliases: ['electricity_theft_or_breach_cnt', 'electricity_theft_or_breach'], label: '窃电或违约用电客户', chartLabel: '窃电或违约用电', filterValue: '窃电或违约用电客户', color: '#9b5cff' },
+    { key: 'harassing', field: '骚扰来电客户', fieldAliases: ['harassing_call_cnt', 'harassing_call'], label: '骚扰来电客户', chartLabel: '骚扰来电', filterValue: '骚扰来电客户', color: '#67f5a6' },
   ],
 }
 
+const sensitiveDemandJudgementRuleGroups = [
+  {
+    key: 'sensitive',
+    label: '敏感客户',
+    description: '根据客户诉求中的情绪强度、重复反映情况及投诉升级倾向综合判定。',
+    rules: [
+      { key: 'light', label: '轻度敏感', color: '#b84cff', rule: '两个月内停电2次并且诉求过1次的客户。' },
+      { key: 'medium', label: '中度敏感', color: '#ff5b7d', rule: '两个月内停电3次及以上并且诉求过1次的客户。' },
+      { key: 'high', label: '高度敏感', color: '#ff2bb3', rule: '两个月内停电2次并且诉求过2次及以上的客户。' },
+      { key: 'extreme', label: '极端高危敏感', color: '#ff8a00', rule: '两个月内停电2次并且诉求过2次及以上的客户。' },
+    ],
+  },
+  {
+    key: 'special',
+    label: '特殊客户',
+    description: '根据客户诉求内容、业务状态及来电行为特征进行分类判定。',
+    rules: [
+      { key: 'unreasonable', label: '不合理诉求', color: '#e1a51e', rule: '诉求与现行政策、业务规定不符，或明显超出供电服务职责范围。' },
+      { key: 'other', label: '其他类', color: '#ff7a00', rule: '具有明确特殊诉求特征，但不属于其余六类特殊客户。' },
+      { key: 'malicious', label: '恶意诉求', color: '#8bdc2f', rule: '存在虚构事实、恶意重复诉求或扰乱正常服务秩序等行为。' },
+      { key: 'arrears', label: '拖欠电费', color: '#d14b9f', rule: '客户存在逾期未缴电费或相关欠费状态。' },
+      { key: 'suspected', label: '疑似套取信息', color: '#35cfff', rule: '反复或异常询问内部、人员及其他非公开信息，存在套取信息嫌疑。' },
+      { key: 'theft', label: '窃电或违约用电', color: '#9b5cff', rule: '存在窃电、违约用电相关线索、记录或业务标识。' },
+      { key: 'harassing', label: '骚扰来电', color: '#36bd83', rule: '频繁拨打与业务无关、辱骂或骚扰性质的电话，影响正常服务。' },
+    ],
+  },
+]
+
 const showSensitiveDemandAutoDetail = ref(false)
+const showSensitiveDemandJudgementRules = ref(false)
 const selectedSensitiveDemandAutoDetailKey = ref('sensitive')
 const selectedSensitiveDemandUserKey = ref('')
 const intelligentAnalysisSelectedUser = ref(null)
@@ -4485,13 +4483,7 @@ const intelligentReceiptValue = ref('')
 const intelligentReceiptLoading = ref(false)
 const intelligentReceiptError = ref('')
 const sensitiveDemandTopUsersData = ref([])
-const sensitiveDemandUserTagCountsData = ref({
-  important: 0,
-  sensitive: 0,
-  special: 0,
-})
 const sensitiveDemandUserTypeRowsData = ref({
-  important: [],
   sensitive: [],
   special: [],
 })
@@ -4976,108 +4968,24 @@ const sensitiveDemandTypeRows = computed(() =>
   })),
 )
 
-const sensitiveDemandTypeTotal = computed(() =>
-  sensitiveDemandTypeRows.value.reduce((sum, item) => sum + Math.max(safeNumber(item.count), 0), 0),
-)
-
 const activeSensitiveDemandTypeKey = ref('')
 
-const sensitiveDemandPieBackground = computed(() => buildPieBackground(sensitiveDemandTypeRows.value.map((item) => ({
-  ...item,
-  rate: sensitiveDemandTypeTotal.value ? (item.count / sensitiveDemandTypeTotal.value) * 100 : 0,
-}))))
-
-const sensitiveDemandPieSegments = computed(() => {
-  let cursor = 0
-  return sensitiveDemandTypeRows.value
-    .map((item) => {
-      const value = sensitiveDemandTypeTotal.value ? (item.count / sensitiveDemandTypeTotal.value) * 100 : 0
-      const start = cursor
-      cursor = Math.min(100, cursor + value)
-      return {
-        ...item,
-        start,
-        value,
-      }
-    })
-    .filter((item) => item.value > 0)
+const sensitiveDemandTypeAxisMax = computed(() => {
+  const maxCount = Math.max(...sensitiveDemandTypeRows.value.map((item) => item.count), 0)
+  return maxCount <= 5 ? 5 : Math.ceil(maxCount / 5) * 5
 })
 
-const activeSensitiveDemandType = computed(() =>
-  sensitiveDemandTypeRows.value.find((item) => item.key === activeSensitiveDemandTypeKey.value) || null,
+const sensitiveDemandTypeAxisTicks = computed(() =>
+  Array.from({ length: 6 }, (_, index) => sensitiveDemandTypeAxisMax.value * (5 - index) / 5),
 )
 
-const sensitiveDemandPieCenterValue = computed(() =>
-  activeSensitiveDemandType.value?.count ?? sensitiveDemandTypeTotal.value,
-)
-
-const sensitiveDemandPieCenterLabel = computed(() =>
-  activeSensitiveDemandType.value
-    ? `${activeSensitiveDemandType.value.label} ${
-      sensitiveDemandTypeTotal.value
-        ? ((Math.max(safeNumber(activeSensitiveDemandType.value.count), 0) / sensitiveDemandTypeTotal.value) * 100).toFixed(1)
-        : '0.0'
-    }%`
-    : '诉求次数',
-)
-
-const sensitiveDemandUserTagCounts = computed(() => sensitiveDemandUserTagCountsData.value)
-
-const sensitiveDemandUserTagTotal = computed(() => {
-  const counts = sensitiveDemandUserTagCounts.value
-  return sensitiveDemandUserTagMeta.reduce((sum, item) => sum + Math.max(safeNumber(counts[item.key]), 0), 0)
-})
-
-const sensitiveDemandUserTagRows = computed(() => {
-  const counts = sensitiveDemandUserTagCounts.value
-  return sensitiveDemandUserTagMeta.map((item) => {
-    const count = Math.max(safeNumber(counts[item.key]), 0)
-    return {
-      ...item,
-      count,
-      rate: sensitiveDemandUserTagTotal.value ? (count / sensitiveDemandUserTagTotal.value) * 100 : 0,
-    }
-  })
-})
-
-const sensitiveDemandUserTagPieBackground = computed(() =>
-  buildPieBackground(sensitiveDemandUserTagRows.value),
-)
-
-const activeSensitiveDemandUserTagKey = ref('')
-
-const sensitiveDemandUserTagPieSegments = computed(() => {
-  let cursor = 0
-  return sensitiveDemandUserTagRows.value
-    .map((item) => {
-      const value = Math.max(0, Number(item.rate) || 0)
-      const start = cursor
-      cursor = Math.min(100, cursor + value)
-      return {
-        ...item,
-        start,
-        value,
-      }
-    })
-    .filter((item) => item.value > 0)
-})
-
-const activeSensitiveDemandUserTag = computed(() =>
-  sensitiveDemandUserTagRows.value.find((item) => item.key === activeSensitiveDemandUserTagKey.value) || null,
-)
-
-const sensitiveDemandUserTagPieCenterValue = computed(() =>
-  activeSensitiveDemandUserTag.value?.count ?? sensitiveDemandUserTagTotal.value,
-)
-
-const sensitiveDemandUserTagPieCenterLabel = computed(() =>
-  activeSensitiveDemandUserTag.value
-    ? `${activeSensitiveDemandUserTag.value.label} ${
-      sensitiveDemandUserTagTotal.value
-        ? ((Math.max(safeNumber(activeSensitiveDemandUserTag.value.count), 0) / sensitiveDemandUserTagTotal.value) * 100).toFixed(1)
-        : '0.0'
-    }%`
-    : '诉求用户',
+const sensitiveDemandTypeChartRows = computed(() =>
+  sensitiveDemandTypeRows.value.map((item) => ({
+    ...item,
+    heightPercent: sensitiveDemandTypeAxisMax.value
+      ? Math.min((item.count / sensitiveDemandTypeAxisMax.value) * 100, 100)
+      : 0,
+  })),
 )
 
 const sensitiveDemandAutoDetailGroups = computed(() =>
@@ -5109,6 +5017,25 @@ const selectedSensitiveDemandAutoDetailGroup = computed(() =>
 )
 
 const activeSensitiveDemandAutoDetailCategoryKey = ref('')
+
+const sensitiveDemandAutoDetailAxisMax = computed(() => {
+  const rows = selectedSensitiveDemandAutoDetailGroup.value?.rows || []
+  const maxCount = Math.max(...rows.map((item) => item.count), 0)
+  return maxCount <= 5 ? 5 : Math.ceil(maxCount / 5) * 5
+})
+
+const sensitiveDemandAutoDetailAxisTicks = computed(() =>
+  Array.from({ length: 6 }, (_, index) => sensitiveDemandAutoDetailAxisMax.value * (5 - index) / 5),
+)
+
+const sensitiveDemandAutoDetailChartRows = computed(() =>
+  (selectedSensitiveDemandAutoDetailGroup.value?.rows || []).map((item) => ({
+    ...item,
+    heightPercent: sensitiveDemandAutoDetailAxisMax.value
+      ? Math.min((item.count / sensitiveDemandAutoDetailAxisMax.value) * 100, 100)
+      : 0,
+  })),
+)
 
 const sensitiveDemandAutoDetailPieSegments = computed(() => {
   let cursor = 0
@@ -5335,6 +5262,7 @@ const loadSensitiveDemandAutoDetailRows = async () => {
 
 const openSensitiveDemandAutoDetailTableUser = async (item) => {
   selectedSensitiveDemandAutoDetailTableUser.value = item
+  void syncOneMapMeterBoxId(item?.consNo, item)
   const group = selectedSensitiveDemandAutoDetailGroup.value
   if (!item?.consNo || !group?.detailQuery || !sensitiveDemandDatePayload.value) {
     return
@@ -5365,13 +5293,7 @@ const loadSensitiveDemandData = async (rangePayload) => {
   const dateKey = getSensitiveDemandDateKey(datePayload)
   sensitiveDemandDatePayload.value = datePayload
   sensitiveDemandTopUsersData.value = []
-  sensitiveDemandUserTagCountsData.value = {
-    important: 0,
-    sensitive: 0,
-    special: 0,
-  }
   sensitiveDemandUserTypeRowsData.value = {
-    important: [],
     sensitive: [],
     special: [],
   }
@@ -5392,12 +5314,8 @@ const loadSensitiveDemandData = async (rangePayload) => {
   sensitiveDemandError.value = ''
 
   try {
-    const [
-      topUsersResult,
-      userTypeResult,
-    ] = await Promise.allSettled([
+    const [topUsersResult] = await Promise.allSettled([
       querySensitiveAppealTypeTop5(datePayload),
-      querySensitiveAppealUserTypeCount(datePayload),
     ])
 
     if (requestId !== sensitiveDemandRequestId) {
@@ -5411,15 +5329,6 @@ const loadSensitiveDemandData = async (rangePayload) => {
       selectedSensitiveDemandUserKey.value = sensitiveDemandTopUsersData.value[0]?.key || ''
     }
 
-    if (userTypeResult.status === 'fulfilled') {
-      const record = getSensitiveAppealArrayData(userTypeResult.value)[0] || {}
-      sensitiveDemandUserTagCountsData.value = {
-        important: Math.max(safeNumber(readFieldValue(record, ['key_cnt', 'keyCnt'])), 0),
-        sensitive: Math.max(safeNumber(readFieldValue(record, ['sensitive_cnt', 'sensitiveCnt'])), 0),
-        special: Math.max(safeNumber(readFieldValue(record, ['spcl_cnt', 'spclCnt', 'special_cnt'])), 0),
-      }
-    }
-
     selectedSensitiveDemandAutoDetailTableCategoryKey.value = ''
 
     if (topUsersResult.status === 'rejected') {
@@ -5427,14 +5336,10 @@ const loadSensitiveDemandData = async (rangePayload) => {
       sensitiveDemandError.value = topUsersResult.reason?.message || '诉求归集TOP 5接口调用失败'
     }
 
-    ;[
-      userTypeResult,
-    ].filter((result) => result.status === 'rejected')
-      .forEach((result) => console.error(result.reason))
-
     if (showSensitiveDemandAutoDetail.value) {
-      await loadSensitiveDemandAutoDetailTypeCounts()
       await loadSensitiveDemandAutoDetailRows()
+    } else {
+      await loadSensitiveDemandAutoDetailTypeCounts()
     }
 
     sensitiveDemandLoadedDateKey.value = dateKey
@@ -5457,18 +5362,20 @@ watch(selectedSensitiveDemandAutoDetailKey, () => {
   selectedSensitiveDemandAutoDetailTableCategoryKey.value = ''
   sensitiveDemandAutoDetailSearchInput.value = ''
   sensitiveDemandAutoDetailSearchKeyword.value = ''
-  sensitiveDemandAutoDetailCurrentPage.value = 1
   sensitiveDemandAutoDetailJumpPageInput.value = ''
   selectedSensitiveDemandAutoDetailTableUser.value = null
+  sensitiveDemandAutoDetailRows.value = []
+  sensitiveDemandAutoDetailTotal.value = 0
   void loadSensitiveDemandAutoDetailTypeCounts()
-  void loadSensitiveDemandAutoDetailRows()
 })
 
 watch(selectedSensitiveDemandAutoDetailTableCategoryKey, () => {
   sensitiveDemandAutoDetailCurrentPage.value = 1
   sensitiveDemandAutoDetailJumpPageInput.value = ''
   selectedSensitiveDemandAutoDetailTableUser.value = null
-  void loadSensitiveDemandAutoDetailRows()
+  if (showSensitiveDemandAutoDetail.value) {
+    void loadSensitiveDemandAutoDetailRows()
+  }
 })
 
 watch(selectedSensitiveDemandUserKey, () => {
@@ -5524,17 +5431,18 @@ watch(showSensitiveDemandAutoDetail, (visible) => {
   if (visible) {
     sensitiveDemandAutoDetailSearchInput.value = ''
     sensitiveDemandAutoDetailSearchKeyword.value = ''
-    if (selectedSensitiveDemandAutoDetailKey.value !== 'sensitive') {
-      selectedSensitiveDemandAutoDetailKey.value = 'sensitive'
-      return
+    if (sensitiveDemandAutoDetailCurrentPage.value !== 1) {
+      sensitiveDemandAutoDetailCurrentPage.value = 1
+    } else {
+      void loadSensitiveDemandAutoDetailRows()
     }
-    void loadSensitiveDemandAutoDetailTypeCounts()
-    void loadSensitiveDemandAutoDetailRows()
   }
 })
 
 watch(sensitiveDemandAutoDetailCurrentPage, () => {
-  void loadSensitiveDemandAutoDetailRows()
+  if (showSensitiveDemandAutoDetail.value) {
+    void loadSensitiveDemandAutoDetailRows()
+  }
 })
 
 const outageRangeChains = computed(() => {
@@ -7764,8 +7672,7 @@ onMounted(async () => {
     void loadTopbarWeather()
   }, 30 * 60 * 1000)
   window.addEventListener('message', handleMapFrameMessage)
-  await Promise.all([loadCountyList(), loadOutageAnalysisRegions()])
-  await loadDashboardData()
+  await loadOutageAnalysisRegions()
 
   if (!mapRef.value) {
     return
@@ -8050,71 +7957,24 @@ onBeforeUnmount(() => {
             </template>
 
             <template v-else-if="isSensitiveDemandPage">
-              <section v-if="showSensitiveDemandAutoDetail" class="sensitive-demand-auto-detail-page">
+              <div
+                v-if="showSensitiveDemandAutoDetail"
+                class="sensitive-demand-auto-dialog-backdrop"
+                @click.self="showSensitiveDemandAutoDetail = false"
+              >
+              <section
+                class="sensitive-demand-auto-detail-page sensitive-demand-auto-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="sensitive-demand-auto-dialog-title"
+              >
                 <header class="sensitive-demand-auto-detail-head">
-                  <h2>自动化识别</h2>
+                  <h2 id="sensitive-demand-auto-dialog-title">自动化识别</h2>
                   <div class="sensitive-demand-auto-detail-actions">
                     <button type="button" class="user-detail-close" @click="showSensitiveDemandAutoDetail = false">×</button>
                   </div>
                 </header>
-                <div class="sensitive-demand-auto-detail-content">
-                  <section class="sensitive-demand-auto-detail-half sensitive-demand-auto-detail-pies">
-                    <div class="sensitive-demand-auto-detail-module-actions">
-                      <select v-model="selectedSensitiveDemandAutoDetailKey" class="region-select">
-                        <option
-                          v-for="group in sensitiveDemandAutoDetailGroups"
-                          :key="`auto-detail-option-${group.key}`"
-                          :value="group.key"
-                        >
-                          {{ group.label }}
-                        </option>
-                      </select>
-                    </div>
-                    <article class="sensitive-demand-auto-detail-pie-card">
-                      <div
-                        class="tag-pie sensitive-demand-pie sensitive-demand-detail-pie"
-                        :style="{ '--demand-pie-bg': selectedSensitiveDemandAutoDetailGroup?.pieBackground }"
-                        @mouseleave="activeSensitiveDemandAutoDetailCategoryKey = ''"
-                      >
-                        <svg class="sensitive-demand-pie-hit-area" viewBox="0 0 100 100" aria-hidden="true">
-                          <circle
-                            v-for="item in sensitiveDemandAutoDetailPieSegments"
-                            :key="`sensitive-demand-auto-detail-pie-${item.key}`"
-                            class="sensitive-demand-pie-hit-segment"
-                            cx="50"
-                            cy="50"
-                            r="39.5"
-                            pathLength="100"
-                            :stroke-dasharray="`${item.value} ${100 - item.value}`"
-                            :stroke-dashoffset="-item.start"
-                            @mouseenter="activeSensitiveDemandAutoDetailCategoryKey = item.key"
-                            @focus="activeSensitiveDemandAutoDetailCategoryKey = item.key"
-                          />
-                        </svg>
-                        <div class="tag-pie-center sensitive-demand-auto-pie-center">
-                          <strong>{{ sensitiveDemandAutoDetailPieCenterValue }}</strong>
-                          <span>{{ sensitiveDemandAutoDetailPieCenterLabel }}</span>
-                        </div>
-                      </div>
-                    </article>
-                    <article class="sensitive-demand-auto-detail-list-card">
-                      <div
-                        class="sensitive-demand-auto-detail-list"
-                        :class="{ 'is-important': selectedSensitiveDemandAutoDetailGroup?.key === 'important' }"
-                      >
-                        <div
-                          v-for="item in selectedSensitiveDemandAutoDetailGroup?.rows || []"
-                          :key="item.key"
-                          class="sensitive-demand-auto-detail-row"
-                        >
-                          <span class="sensitive-demand-type-dot" :style="{ background: item.color }"></span>
-                          <span class="sensitive-demand-type-label" :title="item.label">{{ item.label }}</span>
-                          <strong>{{ item.count }}人</strong>
-                          <em>{{ item.rateText }}</em>
-                        </div>
-                      </div>
-                    </article>
-                  </section>
+                <div class="sensitive-demand-auto-detail-content sensitive-demand-auto-detail-list-only">
                   <section class="sensitive-demand-auto-detail-half sensitive-demand-auto-detail-spare">
                     <div class="sensitive-demand-auto-detail-query">
                       <input
@@ -8262,13 +8122,20 @@ onBeforeUnmount(() => {
                           暂无诉求详情
                         </p>
                       </div>
-                      <p><span>判定规则：</span></p>
                     </div>
                   </article>
                 </div>
               </section>
+              </div>
 
-              <div v-else class="sensitive-demand-left-layout">
+              <div class="sensitive-demand-left-layout">
+                <header class="sensitive-demand-overview-header">
+                  <div class="sensitive-demand-overview-heading">
+                    <span class="sensitive-demand-heading-arrows" aria-hidden="true"><i></i><i></i></span>
+                    <h2>敏感诉求概览</h2>
+                  </div>
+                </header>
+
                 <section class="sensitive-demand-module sensitive-demand-top-module">
                   <div class="module-title-row">
                     <h2>诉求归集TOP 5</h2>
@@ -8298,92 +8165,155 @@ onBeforeUnmount(() => {
                       <p v-else-if="sensitiveDemandTopUsers.length === 0" class="empty-tip">暂无诉求归集数据</p>
                     </div>
 
-                    <div class="sensitive-demand-type-panel">
+                    <div class="sensitive-demand-type-panel sensitive-demand-type-bar-panel">
                       <div class="sensitive-demand-type-head">
                         <h3>诉求类型</h3>
-                      </div>
-                      <div
-                        class="tag-pie sensitive-demand-pie"
-                        :style="{ '--demand-pie-bg': sensitiveDemandPieBackground }"
-                        @mouseleave="activeSensitiveDemandTypeKey = ''"
-                      >
-                        <svg class="sensitive-demand-pie-hit-area" viewBox="0 0 100 100" aria-hidden="true">
-                          <circle
-                            v-for="item in sensitiveDemandPieSegments"
-                            :key="`sensitive-demand-pie-${item.key}`"
-                            class="sensitive-demand-pie-hit-segment"
-                            cx="50"
-                            cy="50"
-                            r="39.5"
-                            pathLength="100"
-                            :stroke-dasharray="`${item.value} ${100 - item.value}`"
-                            :stroke-dashoffset="-item.start"
-                            @mouseenter="activeSensitiveDemandTypeKey = item.key"
-                            @focus="activeSensitiveDemandTypeKey = item.key"
-                          />
-                        </svg>
-                        <div class="tag-pie-center sensitive-demand-pie-center">
-                          <strong>{{ sensitiveDemandPieCenterValue }}</strong>
-                          <span>{{ sensitiveDemandPieCenterLabel }}</span>
+                        <div class="sensitive-demand-type-bar-legend" aria-label="诉求类型图例">
+                          <span v-for="item in sensitiveDemandTypeRows" :key="`type-legend-${item.key}`">
+                            <i :style="{ background: item.color }"></i>{{ item.label }}
+                          </span>
                         </div>
                       </div>
-                      <div class="sensitive-demand-type-legend">
-                        <div
-                          v-for="item in sensitiveDemandTypeRows"
-                          :key="item.key"
-                          class="sensitive-demand-type-legend-item"
-                        >
-                          <span class="sensitive-demand-type-dot" :style="{ background: item.color }"></span>
-                          <span class="sensitive-demand-type-label" :title="item.label">{{ item.label }}</span>
-                          <strong>{{ item.count }}次</strong>
+                      <div class="sensitive-demand-type-bar-chart">
+                        <strong class="sensitive-demand-type-axis-title">诉求次数</strong>
+                        <div class="sensitive-demand-type-y-axis" aria-hidden="true">
+                          <span v-for="tick in sensitiveDemandTypeAxisTicks" :key="`type-axis-${tick}`">{{ tick }}</span>
+                        </div>
+                        <div class="sensitive-demand-type-bar-plot">
+                          <i
+                            v-for="(_, index) in sensitiveDemandTypeAxisTicks"
+                            :key="`type-grid-${index}`"
+                            class="sensitive-demand-type-grid-line"
+                            :style="{ top: `${index * 20}%` }"
+                            aria-hidden="true"
+                          ></i>
+                          <div class="sensitive-demand-type-bars">
+                            <div
+                              v-for="item in sensitiveDemandTypeChartRows"
+                              :key="`type-bar-${item.key}`"
+                              class="sensitive-demand-type-bar-column"
+                              :style="{
+                                '--bar-color': item.color,
+                                '--bar-height': `${item.heightPercent}%`,
+                              }"
+                              :aria-label="`${item.label}：${item.count}次`"
+                              tabindex="0"
+                              @mouseenter="activeSensitiveDemandTypeKey = item.key"
+                              @mouseleave="activeSensitiveDemandTypeKey = ''"
+                              @focus="activeSensitiveDemandTypeKey = item.key"
+                              @blur="activeSensitiveDemandTypeKey = ''"
+                            >
+                              <span
+                                v-show="activeSensitiveDemandTypeKey === item.key"
+                                class="sensitive-demand-type-bar-tooltip"
+                              >
+                                {{ item.label }}：{{ item.count }}次
+                              </span>
+                              <i class="sensitive-demand-type-bar"></i>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </section>
 
-                <section
-                  class="sensitive-demand-module sensitive-demand-auto-module"
-                  @click="showSensitiveDemandAutoDetail = true"
-                >
+                <section class="sensitive-demand-module sensitive-demand-auto-module">
                   <div class="module-title-row">
                     <h2>自动化识别</h2>
-                  </div>
-                  <div class="sensitive-demand-type-panel sensitive-demand-auto-panel">
                     <div
-                      class="tag-pie sensitive-demand-pie sensitive-demand-auto-pie"
-                      :style="{ '--demand-pie-bg': sensitiveDemandUserTagPieBackground }"
-                      @mouseleave="activeSensitiveDemandUserTagKey = ''"
+                      class="sensitive-demand-auto-detail-module-actions sensitive-demand-auto-customer-actions"
+                      @click.stop
+                      @keydown.stop
                     >
-                      <svg class="sensitive-demand-pie-hit-area" viewBox="0 0 100 100" aria-hidden="true">
-                        <circle
-                          v-for="item in sensitiveDemandUserTagPieSegments"
-                          :key="`sensitive-demand-user-tag-pie-${item.key}`"
-                          class="sensitive-demand-pie-hit-segment"
-                          cx="50"
-                          cy="50"
-                          r="39.5"
-                          pathLength="100"
-                          :stroke-dasharray="`${item.value} ${100 - item.value}`"
-                          :stroke-dashoffset="-item.start"
-                          @mouseenter="activeSensitiveDemandUserTagKey = item.key"
-                          @focus="activeSensitiveDemandUserTagKey = item.key"
-                        />
-                      </svg>
-                      <div class="tag-pie-center sensitive-demand-auto-pie-center">
-                        <strong>{{ sensitiveDemandUserTagPieCenterValue }}</strong>
-                        <span>{{ sensitiveDemandUserTagPieCenterLabel }}</span>
+                      <button
+                        v-for="group in sensitiveDemandAutoDetailGroups"
+                        :key="`auto-overview-option-${group.key}`"
+                        type="button"
+                        class="sensitive-demand-auto-customer-btn"
+                        :class="{ active: selectedSensitiveDemandAutoDetailKey === group.key }"
+                        :aria-pressed="selectedSensitiveDemandAutoDetailKey === group.key"
+                        @click="selectedSensitiveDemandAutoDetailKey = group.key"
+                      >
+                        {{ group.label }}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      class="sensitive-demand-judgement-rule-button"
+                      @click.stop="showSensitiveDemandJudgementRules = true"
+                    >
+                      判定规则
+                    </button>
+                  </div>
+                  <div
+                    class="sensitive-demand-type-panel sensitive-demand-type-bar-panel sensitive-demand-auto-panel sensitive-demand-auto-overview-panel"
+                    role="button"
+                    tabindex="0"
+                    @click="showSensitiveDemandAutoDetail = true"
+                    @keydown.enter="showSensitiveDemandAutoDetail = true"
+                    @keydown.space.prevent="showSensitiveDemandAutoDetail = true"
+                  >
+                    <div class="sensitive-demand-type-head sensitive-demand-auto-bar-head">
+                      <div
+                        class="sensitive-demand-type-bar-legend"
+                        :class="{ 'is-special': selectedSensitiveDemandAutoDetailKey === 'special' }"
+                        aria-label="自动化识别客户类型图例"
+                      >
+                        <span
+                          v-for="item in selectedSensitiveDemandAutoDetailGroup?.rows || []"
+                          :key="`auto-type-legend-${item.key}`"
+                        >
+                          <i :style="{ background: item.color }"></i>{{ item.chartLabel || item.label }}
+                        </span>
                       </div>
                     </div>
-                    <div class="sensitive-demand-type-legend sensitive-demand-auto-legend">
-                      <div
-                        v-for="item in sensitiveDemandUserTagRows"
-                        :key="item.key"
-                        class="sensitive-demand-type-legend-item sensitive-demand-auto-legend-item"
-                      >
-                        <span class="sensitive-demand-type-dot" :style="{ background: item.color }"></span>
-                        <span class="sensitive-demand-type-label" :title="item.label">{{ item.label }}</span>
-                        <strong>{{ item.count }}人</strong>
+                    <div class="sensitive-demand-type-bar-chart">
+                      <strong class="sensitive-demand-type-axis-title">客户数</strong>
+                      <div class="sensitive-demand-type-y-axis" aria-hidden="true">
+                        <span
+                          v-for="tick in sensitiveDemandAutoDetailAxisTicks"
+                          :key="`auto-type-axis-${tick}`"
+                        >
+                          {{ tick }}
+                        </span>
+                      </div>
+                      <div class="sensitive-demand-type-bar-plot">
+                        <i
+                          v-for="(_, index) in sensitiveDemandAutoDetailAxisTicks"
+                          :key="`auto-type-grid-${index}`"
+                          class="sensitive-demand-type-grid-line"
+                          :style="{ top: `${index * 20}%` }"
+                          aria-hidden="true"
+                        ></i>
+                        <div
+                          class="sensitive-demand-type-bars"
+                          :style="{ '--bar-count': sensitiveDemandAutoDetailChartRows.length }"
+                        >
+                          <div
+                            v-for="item in sensitiveDemandAutoDetailChartRows"
+                            :key="`auto-type-bar-${item.key}`"
+                            class="sensitive-demand-type-bar-column"
+                            :style="{
+                              '--bar-color': item.color,
+                              '--bar-height': `${item.heightPercent}%`,
+                            }"
+                            :aria-label="`${item.chartLabel || item.label}：${item.count}人`"
+                            tabindex="0"
+                            @mouseenter="activeSensitiveDemandAutoDetailCategoryKey = item.key"
+                            @mouseleave="activeSensitiveDemandAutoDetailCategoryKey = ''"
+                            @focus="activeSensitiveDemandAutoDetailCategoryKey = item.key"
+                            @blur="activeSensitiveDemandAutoDetailCategoryKey = ''"
+                          >
+                            <span
+                              v-show="activeSensitiveDemandAutoDetailCategoryKey === item.key"
+                              class="sensitive-demand-type-bar-tooltip"
+                            >
+                              {{ item.chartLabel || item.label }}：{{ item.count }}人
+                            </span>
+                            <i class="sensitive-demand-type-bar"></i>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -8526,6 +8456,7 @@ onBeforeUnmount(() => {
             停电用户分析
           </button>
           <button
+            v-show="false"
             type="button"
             class="page-tab-btn"
             :class="{ active: isOutageUsersPage }"
@@ -8591,7 +8522,11 @@ onBeforeUnmount(() => {
           </select>
         </label>
 
-        <div v-if="!isOutageAnalysisPage" class="time-filter-bar global-time-filter">
+        <div
+          v-if="!isOutageAnalysisPage"
+          class="time-filter-bar global-time-filter"
+          :class="{ 'sensitive-demand-time-filter': isSensitiveDemandPage }"
+        >
           <label class="time-filter-field">
             <input v-model="queryEndTime" type="date" class="time-filter-input" />
           </label>
@@ -8600,6 +8535,62 @@ onBeforeUnmount(() => {
 
       <section class="dashboard-spacer"></section>
     </main>
+
+    <Teleport to="body">
+      <div
+        v-if="showSensitiveDemandJudgementRules"
+        class="sensitive-demand-judgement-rule-backdrop"
+        @click.self="showSensitiveDemandJudgementRules = false"
+        @keydown.esc="showSensitiveDemandJudgementRules = false"
+      >
+        <section
+          class="sensitive-demand-judgement-rule-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sensitive-demand-judgement-rule-title"
+        >
+          <header>
+            <h3 id="sensitive-demand-judgement-rule-title">自动化识别判定规则</h3>
+            <button
+              type="button"
+              aria-label="关闭"
+              @click="showSensitiveDemandJudgementRules = false"
+            >
+              ×
+            </button>
+          </header>
+          <div class="sensitive-demand-judgement-rule-body">
+            <p class="sensitive-demand-judgement-rule-intro">
+              系统依据客户诉求内容及相关业务特征进行自动识别，具体分类规则如下。
+            </p>
+            <section
+              v-for="group in sensitiveDemandJudgementRuleGroups"
+              :key="`judgement-rule-group-${group.key}`"
+              class="sensitive-demand-judgement-rule-group"
+            >
+              <div class="sensitive-demand-judgement-rule-group-head">
+                <h4>{{ group.label }}</h4>
+                <p>{{ group.description }}</p>
+              </div>
+              <div class="sensitive-demand-judgement-rule-grid">
+                <article
+                  v-for="rule in group.rules"
+                  :key="`judgement-rule-${group.key}-${rule.key}`"
+                  :style="{ '--judgement-rule-color': rule.color }"
+                >
+                  <i aria-hidden="true"></i>
+                  <strong>{{ rule.label }}</strong>
+                  <p>{{ rule.rule }}</p>
+                </article>
+              </div>
+            </section>
+          </div>
+          <footer>
+            <button type="button" @click="showSensitiveDemandJudgementRules = false">知道了</button>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
 
   </div>
 </template>

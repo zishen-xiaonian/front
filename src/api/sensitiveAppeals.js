@@ -12,20 +12,8 @@ const postSensitiveAppeal = (path, params = {}) =>
 export const querySensitiveAppealTypeTop5 = (params) =>
   postSensitiveAppeal('/appeal-type-count/top5', params)
 
-export const querySensitiveAppealUserTypeCount = (params) =>
-  postSensitiveAppeal('/user-type-count', params)
-
 export const querySensitiveAppealUserAppeals = (params) =>
   postSensitiveAppeal('/user-appeals', params)
-
-export const querySensitiveAppealKeyUserTypeCount = (params) =>
-  postSensitiveAppeal('/key-users/type-count', params)
-
-export const querySensitiveAppealKeyUsers = (params) =>
-  postSensitiveAppeal('/key-users', params)
-
-export const querySensitiveAppealKeyUserDetail = (params) =>
-  postSensitiveAppeal('/key-users/detail', params)
 
 export const querySensitiveAppealSensitiveUserTypeCount = (params) =>
   postSensitiveAppeal('/sensitive-users/type-count', params)
