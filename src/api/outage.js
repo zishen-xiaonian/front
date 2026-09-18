@@ -66,6 +66,12 @@ const OUTAGE_ANALYSIS_WARNING_SUMMARY_API =
 const OUTAGE_ANALYSIS_WARNING_DAILY_TREND_API =
   import.meta.env.VITE_OUTAGE_ANALYSIS_WARNING_DAILY_TREND_API ||
   '/api/v1/outage-analysis/frequent-outage-warning-daily-trend'
+const OUTAGE_ANALYSIS_USER_TYPE_SUMMARY_API =
+  import.meta.env.VITE_OUTAGE_ANALYSIS_USER_TYPE_SUMMARY_API ||
+  '/api/v1/outage-analysis/outage-user-type-summary'
+const OUTAGE_ANALYSIS_USER_TYPE_DAILY_TREND_API =
+  import.meta.env.VITE_OUTAGE_ANALYSIS_USER_TYPE_DAILY_TREND_API ||
+  '/api/v1/outage-analysis/outage-user-type-daily-trend'
 const ONE_MAP_METER_BOX_ID_API =
   import.meta.env.VITE_ONE_MAP_METER_BOX_ID_API || '/api/v1/one-map/meter-box-id'
 
@@ -199,6 +205,16 @@ export const queryOutageAnalysisWarningSummary = (params) =>
 
 export const queryOutageAnalysisWarningDailyTrend = (params) =>
   postJson(OUTAGE_ANALYSIS_WARNING_DAILY_TREND_API, params, {
+    timeout: DEFAULT_STATS_TIMEOUT,
+  })
+
+export const queryOutageAnalysisUserTypeSummary = (params) =>
+  postJson(OUTAGE_ANALYSIS_USER_TYPE_SUMMARY_API, params, {
+    timeout: DEFAULT_STATS_TIMEOUT,
+  })
+
+export const queryOutageAnalysisUserTypeDailyTrend = (params) =>
+  postJson(OUTAGE_ANALYSIS_USER_TYPE_DAILY_TREND_API, params, {
     timeout: DEFAULT_STATS_TIMEOUT,
   })
 

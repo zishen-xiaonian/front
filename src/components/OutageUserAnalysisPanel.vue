@@ -1,9 +1,9 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import {
   queryOutageAnalysisImpactDailyTrend,
+  queryOutageAnalysisUserTypeDailyTrend,
   queryOutageAnalysisWarningDailyTrend,
-  queryOutageUserAnalysisOverview,
 } from '../api/outage'
 import StackedBarChart from './StackedBarChart.vue'
 
@@ -48,6 +48,11 @@ const impactRules = [
   { key: 'low', label: '影响户数轻度', color: '#41bd91' },
 ]
 
+const userTypeRules = [
+  { key: 'coalToElectric', label: '煤改电用户', color: '#18aeb8' },
+  { key: 'important', label: '重要用户', color: '#f0a821' },
+]
+
 const safeValue = (value) => {
   const number = Number(value)
   return Number.isFinite(number) && number >= 0 ? number : 0
@@ -73,6 +78,16 @@ const buildImpactChart = (daily = []) => ({
   })),
 })
 
+const buildUserTypeChart = (daily = []) => ({
+  labels: daily.map((item) => String(item?.date || '').slice(5)),
+  series: userTypeRules.map((rule) => ({
+    key: rule.key,
+    name: rule.label,
+    color: rule.color,
+    values: daily.map((item) => safeValue(item?.[rule.key])),
+  })),
+})
+
 const selectedRange = ref('sevenDays')
 const rangeEndTime = ref('')
 const historyDialogOpen = ref(false)
@@ -83,22 +98,16 @@ const historyMaxDate = ref('')
 const historyRange = ref(null)
 const historyValidationError = ref('')
 
-const createEmptyPanelData = () => ({
-  userTypes: { labels: [], series: [] },
-  frequentWarnings: { labels: [], series: [] },
-  outageImpact: { labels: [], series: [] },
-})
-
-const panelData = ref(createEmptyPanelData())
+const userTypeChartData = ref(buildUserTypeChart())
 const warningChartData = ref(buildWarningChart())
 const impactChartData = ref(buildImpactChart())
-const loading = ref(false)
-const loadError = ref('')
+const userTypeLoading = ref(false)
+const userTypeLoadError = ref('')
 const warningLoading = ref(false)
 const warningLoadError = ref('')
 const impactLoading = ref(false)
 const impactLoadError = ref('')
-let requestId = 0
+let userTypeRequestId = 0
 let warningRequestId = 0
 let impactRequestId = 0
 
@@ -136,13 +145,6 @@ const addDays = (date, days) => {
   const result = new Date(date)
   result.setDate(result.getDate() + days)
   return result
-}
-
-const formatBackendDateTime = (date, endOfDay = false) => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day} ${endOfDay ? '23:59:59' : '00:00:00'}`
 }
 
 rangeEndTime.value = formatApiDateTime(new Date())
@@ -251,27 +253,6 @@ const selectRange = (range) => {
   selectedRange.value = range
 }
 
-const buildQueryPayload = () => {
-  if (selectedRange.value === 'history' && historyRange.value) {
-    return {
-      rangeType: 'history',
-      countyName: props.selectedRegion === '全部' ? '' : props.selectedRegion,
-      beginTime: historyRange.value.beginTime,
-      endTime: historyRange.value.endTime,
-    }
-  }
-
-  const end = new Date()
-  const begin = addDays(end, selectedRange.value === 'thirtyDays' ? -29 : -6)
-
-  return {
-    rangeType: selectedRange.value,
-    countyName: props.selectedRegion === '全部' ? '' : props.selectedRegion,
-    beginTime: formatBackendDateTime(begin),
-    endTime: formatApiDateTime(end),
-  }
-}
-
 const applyScope = (payload) => {
   const cityId = String(props.cityId || '').trim()
   const countyId = String(props.countyId || '').trim()
@@ -316,71 +297,36 @@ const buildWarningPayload = () => {
   return applyScope(payload)
 }
 
-const normalizeChart = (source, fallback, rootLabels = []) => {
-  const labels = Array.isArray(source?.labels)
-    ? source.labels.map((item) => String(item))
-    : Array.isArray(rootLabels)
-      ? rootLabels.map((item) => String(item))
-      : []
-  const sourceSeries = Array.isArray(source?.series) ? source.series : []
-
-  if (labels.length === 0 || sourceSeries.length === 0) {
-    return fallback
+const loadUserTypeDailyTrend = async () => {
+  const currentRequestId = ++userTypeRequestId
+  const payload = buildWarningPayload()
+  userTypeChartData.value = buildUserTypeChart()
+  userTypeLoadError.value = ''
+  if (!payload) {
+    userTypeLoading.value = false
+    return
   }
 
-  return {
-    labels,
-    series: sourceSeries.map((item, index) => {
-      const fallbackSeries = fallback.series.find(
-        (candidate) => candidate.key === item?.key || candidate.name === item?.name,
-      ) || fallback.series[index]
-      return {
-        key: String(item?.key || fallbackSeries?.key || `series-${index}`),
-        name: String(item?.name || fallbackSeries?.name || `系列${index + 1}`),
-        color: String(item?.color || fallbackSeries?.color || '#18aeb8'),
-        values: labels.map((_, valueIndex) => safeValue(item?.values?.[valueIndex])),
-      }
-    }),
-  }
-}
-
-const normalizeResponse = (response, fallback) => {
-  const root = response?.data?.data ?? response?.data ?? response?.result ?? response
-  if (!root || typeof root !== 'object') {
-    return fallback
-  }
-
-  const rootLabels = Array.isArray(root.labels) ? root.labels : []
-  return {
-    userTypes: normalizeChart(root.userTypes, fallback.userTypes, rootLabels),
-    frequentWarnings: normalizeChart(root.frequentWarnings, fallback.frequentWarnings, rootLabels),
-    outageImpact: normalizeChart(root.outageImpact, fallback.outageImpact, rootLabels),
-  }
-}
-
-const loadPanelData = async () => {
-  const currentRequestId = ++requestId
-  const emptyData = createEmptyPanelData()
-
-  panelData.value = emptyData
-  loading.value = true
-  loadError.value = ''
+  userTypeLoading.value = true
   try {
-    const response = await queryOutageUserAnalysisOverview(buildQueryPayload())
-    if (currentRequestId !== requestId) {
+    const response = await queryOutageAnalysisUserTypeDailyTrend(payload)
+    if (currentRequestId !== userTypeRequestId) {
       return
     }
-    panelData.value = normalizeResponse(response, emptyData)
+    const daily = response?.data?.daily
+    if (!Array.isArray(daily)) {
+      throw new Error('停电用户类型接口返回格式不正确')
+    }
+    userTypeChartData.value = buildUserTypeChart(daily)
   } catch (error) {
-    if (currentRequestId !== requestId) {
+    if (currentRequestId !== userTypeRequestId) {
       return
     }
-    console.warn('[outage-analysis] 接口加载失败：', error)
-    panelData.value = emptyData
-    loadError.value = error?.message || '接口暂不可用'
+    userTypeChartData.value = buildUserTypeChart()
+    userTypeLoadError.value = error?.message || '数据加载失败'
   } finally {
-    if (currentRequestId === requestId) {
-      loading.value = false
+    if (currentRequestId === userTypeRequestId) {
+      userTypeLoading.value = false
     }
   }
 }
@@ -454,14 +400,6 @@ const loadImpactDailyTrend = async () => {
 }
 
 watch(
-  [selectedRange, () => props.selectedRegion, () => props.endDate, historyRange],
-  () => {
-    void loadPanelData()
-  },
-  { immediate: true },
-)
-
-watch(
   [
     selectedRange,
     () => props.cityId,
@@ -473,7 +411,11 @@ watch(
     if (selectedRange.value !== 'history') {
       rangeEndTime.value = formatApiDateTime(new Date())
     }
-    void Promise.all([loadWarningCounts(), loadImpactDailyTrend()])
+    void Promise.all([
+      loadUserTypeDailyTrend(),
+      loadWarningCounts(),
+      loadImpactDailyTrend(),
+    ])
   },
   { immediate: true },
 )
@@ -482,7 +424,7 @@ watch(
 <template>
   <section
     class="card outage-user-analysis-panel"
-    :aria-busy="loading || warningLoading || impactLoading"
+    :aria-busy="userTypeLoading || warningLoading || impactLoading"
   >
     <header class="outage-analysis-header">
       <div class="outage-analysis-title">
@@ -506,11 +448,17 @@ watch(
 
     </header>
 
-    <article class="outage-analysis-chart-section">
-      <h3>停电用户类型</h3>
+    <article class="outage-analysis-chart-section" :aria-busy="userTypeLoading">
+      <div class="outage-analysis-section-heading">
+        <h3>停电用户类型</h3>
+        <span v-if="userTypeLoading" class="outage-analysis-status">加载中...</span>
+        <span v-else-if="userTypeLoadError" class="outage-analysis-status error" :title="userTypeLoadError">
+          加载失败
+        </span>
+      </div>
       <StackedBarChart
-        :labels="panelData.userTypes.labels"
-        :series="panelData.userTypes.series"
+        :labels="userTypeChartData.labels"
+        :series="userTypeChartData.series"
         unit="用户数"
       />
     </article>

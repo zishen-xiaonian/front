@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import {
   queryOutageAnalysisImpactCounts,
+  queryOutageAnalysisUserTypeSummary,
   queryOutageAnalysisWarningSummary,
 } from '../api/outage'
 
@@ -35,6 +36,9 @@ const impactLoadError = ref('')
 const liveWarnings = ref(null)
 const warningLoading = ref(false)
 const warningLoadError = ref('')
+const liveUserTypeSummary = ref(null)
+const userTypeSummaryLoading = ref(false)
+const userTypeSummaryLoadError = ref('')
 const warningRuleDialogOpen = ref(false)
 const historyDialogOpen = ref(false)
 const historyBeginInput = ref('')
@@ -46,6 +50,7 @@ const historyValidationError = ref('')
 const rangeEndTime = ref('')
 let impactRequestId = 0
 let warningRequestId = 0
+let userTypeSummaryRequestId = 0
 
 const padDatePart = (value) => String(value).padStart(2, '0')
 
@@ -94,16 +99,50 @@ const overviewItems = computed(() => [
   { key: 'rural', label: '农网用户', icon: 'rural', value: props.data?.overview?.rural },
 ])
 
-const keyOverviewItems = computed(() => [
-  { key: 'important', label: '重要用户', value: props.data?.overview?.important },
-  { key: 'coalToElectricity', label: '煤改电用户', value: props.data?.overview?.coalToElectricity },
-])
+const keyOverviewItems = computed(() => {
+  const cards = liveUserTypeSummary.value?.cards
+  return [
+    {
+      key: 'important',
+      label: '重要用户',
+      value: cards?.important
+        ? { outage: cards.important.outage, total: cards.important.restored }
+        : props.data?.overview?.important,
+    },
+    {
+      key: 'coalToElectricity',
+      label: '煤改电用户',
+      value: cards?.coalToElectric
+        ? { outage: cards.coalToElectric.outage, total: cards.coalToElectric.restored }
+        : props.data?.overview?.coalToElectricity,
+    },
+  ]
+})
 
-const importantTypeLegend = computed(() => [
-  { key: 'important', label: '重要用户', color: '#ff8b2d', value: props.data?.userTypes?.important?.important },
-  { key: 'coalToElectricity', label: '煤改电客户', color: '#25bc83', value: props.data?.userTypes?.important?.coalToElectricity },
-  { key: 'other', label: '其他客户', color: '#2d8df0', value: props.data?.userTypes?.important?.other },
-])
+const importantTypeLegend = computed(() => {
+  const distribution = liveUserTypeSummary.value?.typeDistribution
+  return [
+    {
+      key: 'important',
+      label: '重要用户',
+      color: '#ff8b2d',
+      value: distribution?.important ?? props.data?.userTypes?.important?.important,
+    },
+    {
+      key: 'coalToElectricity',
+      label: '煤改电客户',
+      color: '#25bc83',
+      value: distribution?.coalToElectric
+        ?? props.data?.userTypes?.important?.coalToElectricity,
+    },
+    {
+      key: 'other',
+      label: '其他客户',
+      color: '#2d8df0',
+      value: distribution?.other ?? props.data?.userTypes?.important?.other,
+    },
+  ]
+})
 
 const usageTypeLegend = computed(() => [
   { key: 'industrial', label: '大工业用电', color: '#4167ed', value: props.data?.userTypes?.usage?.industrial },
@@ -385,6 +424,42 @@ const loadWarningCounts = async () => {
   }
 }
 
+const loadUserTypeSummary = async () => {
+  const payload = buildWarningPayload()
+  if (!payload) {
+    liveUserTypeSummary.value = null
+    userTypeSummaryLoadError.value = ''
+    return
+  }
+
+  const currentRequestId = ++userTypeSummaryRequestId
+  userTypeSummaryLoading.value = true
+  userTypeSummaryLoadError.value = ''
+  liveUserTypeSummary.value = null
+
+  try {
+    const response = await queryOutageAnalysisUserTypeSummary(payload)
+    if (currentRequestId !== userTypeSummaryRequestId) {
+      return
+    }
+    const summary = response?.data
+    if (!summary?.cards || !summary?.typeDistribution) {
+      throw new Error('停电用户类型汇总接口返回格式不正确')
+    }
+    liveUserTypeSummary.value = summary
+  } catch (error) {
+    if (currentRequestId !== userTypeSummaryRequestId) {
+      return
+    }
+    userTypeSummaryLoadError.value = error?.message || '数据加载失败'
+    liveUserTypeSummary.value = null
+  } finally {
+    if (currentRequestId === userTypeSummaryRequestId) {
+      userTypeSummaryLoading.value = false
+    }
+  }
+}
+
 watch(
   [
     activeRange,
@@ -397,13 +472,17 @@ watch(
   () => {
     void loadImpactCounts()
     void loadWarningCounts()
+    void loadUserTypeSummary()
   },
   { immediate: true },
 )
 </script>
 
 <template>
-  <section class="outage-overview-panel">
+  <section
+    class="outage-overview-panel"
+    :aria-busy="impactLoading || warningLoading || userTypeSummaryLoading"
+  >
     <header class="overview-header">
       <div class="overview-heading">
         <span class="heading-arrows" aria-hidden="true"><i></i><i></i></span>
@@ -466,8 +545,12 @@ watch(
         </div>
       </section>
 
-      <section class="overview-section user-type-section">
-        <h3>停电用户类型</h3>
+      <section class="overview-section user-type-section" :aria-busy="userTypeSummaryLoading">
+        <div class="section-heading-row">
+          <h3>停电用户类型</h3>
+          <span v-if="userTypeSummaryLoading">加载中...</span>
+          <span v-else-if="userTypeSummaryLoadError" class="warning-load-error">加载失败</span>
+        </div>
         <div class="donut-grid">
           <article class="donut-card">
             <div class="donut-graphic" :style="donutStyle(importantTypeLegend)">
@@ -829,6 +912,10 @@ watch(
 .overview-key-list b {
   color: #213238;
   font-size: 16px;
+}
+
+.overview-key-list b {
+  color: #20a977;
 }
 
 .network-value span,
