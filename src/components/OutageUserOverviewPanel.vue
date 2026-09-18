@@ -47,7 +47,6 @@ const historyMinDate = ref('')
 const historyMaxDate = ref('')
 const historyRange = ref(null)
 const historyValidationError = ref('')
-const rangeEndTime = ref('')
 let impactRequestId = 0
 let warningRequestId = 0
 let userTypeSummaryRequestId = 0
@@ -92,7 +91,6 @@ const subtractOneMonth = (date) => {
 }
 
 const toApiDateTime = (value) => String(value || '').replace('T', ' ')
-rangeEndTime.value = toApiDateTime(formatLocalDateTime(new Date()))
 
 const overviewItems = computed(() => [
   { key: 'urban', label: '城网用户', icon: 'urban', value: props.data?.overview?.urban },
@@ -230,7 +228,6 @@ const selectRange = (range) => {
     return
   }
 
-  rangeEndTime.value = toApiDateTime(formatLocalDateTime(new Date()))
   activeRange.value = range
   emit('range-change', range)
 }
@@ -289,18 +286,12 @@ const confirmHistoryRange = () => {
   }
   const beginDate = parseLocalDate(historyBeginInput.value)
   const endDate = parseLocalDate(historyEndInput.value)
-  const now = new Date()
-  const endTime = formatLocalDate(endDate) === formatLocalDate(now)
-    ? toApiDateTime(formatLocalDateTime(now))
-    : `${formatLocalDate(endDate)} 23:59:59`
 
   historyRange.value = {
     beginInput: historyBeginInput.value,
     endInput: historyEndInput.value,
     beginDate: formatLocalDate(beginDate),
     endDate: formatLocalDate(endDate),
-    beginTime: `${formatLocalDate(beginDate)} 00:00:00`,
-    endTime,
   }
   activeRange.value = 'history'
   emit('range-change', 'history')
@@ -328,10 +319,12 @@ const buildImpactPayload = () => {
     if (!historyRange.value) {
       return null
     }
-    payload.beginTime = historyRange.value.beginTime
-    payload.endTime = historyRange.value.endTime
+    payload.beginDate = historyRange.value.beginDate
+    payload.endDate = historyRange.value.endDate
+  } else if (activeRange.value === 'today') {
+    payload.endTime = toApiDateTime(formatLocalDateTime(new Date()))
   } else {
-    payload.endTime = rangeEndTime.value
+    payload.endDate = formatLocalDate(new Date())
   }
   return applyScope(payload)
 }
@@ -345,7 +338,7 @@ const buildWarningPayload = () => {
     payload.beginDate = historyRange.value.beginDate
     payload.endDate = historyRange.value.endDate
   } else if (activeRange.value === 'today') {
-    payload.endTime = rangeEndTime.value
+    payload.endTime = toApiDateTime(formatLocalDateTime(new Date()))
   } else {
     payload.endDate = formatLocalDate(new Date())
   }
@@ -467,7 +460,6 @@ watch(
     () => props.countyId,
     () => historyRange.value?.beginDate,
     () => historyRange.value?.endDate,
-    rangeEndTime,
   ],
   () => {
     void loadImpactCounts()
@@ -559,6 +551,7 @@ watch(
             <div class="donut-legend compact">
               <span v-for="item in importantTypeLegend" :key="item.key">
                 <i :style="{ backgroundColor: item.color }"></i>{{ item.label }}
+                <b>{{ displayValue(item.value) }}</b>
               </span>
             </div>
           </article>
@@ -1053,6 +1046,12 @@ watch(
   align-items: center;
   gap: 4px;
   white-space: nowrap;
+}
+
+.donut-legend.compact b {
+  color: #334f53;
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .donut-legend i,

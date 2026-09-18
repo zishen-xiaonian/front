@@ -20,10 +20,6 @@ const props = defineProps({
     type: String,
     default: '',
   },
-  endDate: {
-    type: String,
-    default: '',
-  },
 })
 
 const rangeOptions = [
@@ -89,7 +85,6 @@ const buildUserTypeChart = (daily = []) => ({
 })
 
 const selectedRange = ref('sevenDays')
-const rangeEndTime = ref('')
 const historyDialogOpen = ref(false)
 const historyBeginInput = ref('')
 const historyEndInput = ref('')
@@ -112,12 +107,6 @@ let warningRequestId = 0
 let impactRequestId = 0
 
 const padDateTime = (value) => String(value).padStart(2, '0')
-
-const formatLocalDateTime = (date) =>
-  `${date.getFullYear()}-${padDateTime(date.getMonth() + 1)}-${padDateTime(date.getDate())}`
-  + `T${padDateTime(date.getHours())}:${padDateTime(date.getMinutes())}:${padDateTime(date.getSeconds())}`
-
-const formatApiDateTime = (date) => formatLocalDateTime(date).replace('T', ' ')
 
 const formatDateInput = (date) =>
   `${date.getFullYear()}-${padDateTime(date.getMonth() + 1)}-${padDateTime(date.getDate())}`
@@ -146,8 +135,6 @@ const addDays = (date, days) => {
   result.setDate(result.getDate() + days)
   return result
 }
-
-rangeEndTime.value = formatApiDateTime(new Date())
 
 const openHistoryDialog = () => {
   const now = new Date()
@@ -221,24 +208,11 @@ const confirmHistoryRange = () => {
     return
   }
 
-  const beginTime = parseDateInput(historyBeginInput.value)
-  const endTime = parseDateInput(historyEndInput.value)
-
-  beginTime.setHours(0, 0, 0, 0)
-  const now = new Date()
-  if (formatDateInput(endTime) === formatDateInput(now)) {
-    endTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 0)
-  } else {
-    endTime.setHours(23, 59, 59, 0)
-  }
-
   historyRange.value = {
     beginInput: historyBeginInput.value,
     endInput: historyEndInput.value,
-    beginDate: formatDateInput(beginTime),
-    endDate: formatDateInput(endTime),
-    beginTime: formatApiDateTime(beginTime),
-    endTime: formatApiDateTime(endTime),
+    beginDate: historyBeginInput.value,
+    endDate: historyEndInput.value,
   }
   selectedRange.value = 'history'
   closeHistoryDialog()
@@ -249,7 +223,6 @@ const selectRange = (range) => {
     openHistoryDialog()
     return
   }
-  rangeEndTime.value = formatApiDateTime(new Date())
   selectedRange.value = range
 }
 
@@ -268,22 +241,7 @@ const applyScope = (payload) => {
   return payload
 }
 
-const buildImpactPayload = () => {
-  const payload = { rangeType: selectedRange.value }
-  if (selectedRange.value === 'history') {
-    if (!historyRange.value) {
-      return null
-    }
-    payload.beginTime = historyRange.value.beginTime
-    payload.endTime = historyRange.value.endTime
-  } else {
-    payload.endTime = rangeEndTime.value
-  }
-
-  return applyScope(payload)
-}
-
-const buildWarningPayload = () => {
+const buildDailyTrendPayload = () => {
   const payload = { rangeType: selectedRange.value }
   if (selectedRange.value === 'history') {
     if (!historyRange.value) {
@@ -294,12 +252,13 @@ const buildWarningPayload = () => {
   } else {
     payload.endDate = formatDateInput(new Date())
   }
+
   return applyScope(payload)
 }
 
 const loadUserTypeDailyTrend = async () => {
   const currentRequestId = ++userTypeRequestId
-  const payload = buildWarningPayload()
+  const payload = buildDailyTrendPayload()
   userTypeChartData.value = buildUserTypeChart()
   userTypeLoadError.value = ''
   if (!payload) {
@@ -333,7 +292,7 @@ const loadUserTypeDailyTrend = async () => {
 
 const loadWarningCounts = async () => {
   const currentRequestId = ++warningRequestId
-  const payload = buildWarningPayload()
+  const payload = buildDailyTrendPayload()
   warningChartData.value = buildWarningChart()
   warningLoadError.value = ''
   if (!payload) {
@@ -367,7 +326,7 @@ const loadWarningCounts = async () => {
 
 const loadImpactDailyTrend = async () => {
   const currentRequestId = ++impactRequestId
-  const payload = buildImpactPayload()
+  const payload = buildDailyTrendPayload()
   impactChartData.value = buildImpactChart()
   impactLoadError.value = ''
   if (!payload) {
@@ -408,9 +367,6 @@ watch(
     () => historyRange.value?.endDate,
   ],
   () => {
-    if (selectedRange.value !== 'history') {
-      rangeEndTime.value = formatApiDateTime(new Date())
-    }
     void Promise.all([
       loadUserTypeDailyTrend(),
       loadWarningCounts(),
