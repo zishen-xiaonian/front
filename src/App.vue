@@ -8335,7 +8335,6 @@ onBeforeUnmount(() => {
             :selected-region="outageAnalysisSelectedRegionName"
             :city-id="outageAnalysisSelectedCityId"
             :county-id="outageAnalysisSelectedCountyId"
-            :end-date="queryEndTime"
           />
 
           <section v-else-if="isOutageUsersPage" class="card module-card">

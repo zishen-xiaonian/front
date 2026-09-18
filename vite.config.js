@@ -20,12 +20,12 @@ export default defineConfig(({ mode }) => {
       port: 5172,
       proxy: {
         '/api': {
-          target: env.VITE_BACKEND_URL || 'http://127.0.0.1:5000',
+          target: env.VITE_BACKEND_URL || 'http://127.0.0.1:5001',
           changeOrigin: true,
           secure: false,
         },
         '/realMeasCenter': {
-          target: env.VITE_BACKEND_URL || 'http://127.0.0.1:5000',
+          target: env.VITE_BACKEND_URL || 'http://127.0.0.1:5001',
           changeOrigin: true,
           secure: false,
         },
