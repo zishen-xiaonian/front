@@ -93,8 +93,19 @@ const subtractOneMonth = (date) => {
 const toApiDateTime = (value) => String(value || '').replace('T', ' ')
 
 const overviewItems = computed(() => [
-  { key: 'urban', label: '城网用户', icon: 'urban', value: props.data?.overview?.urban },
-  { key: 'rural', label: '农网用户', icon: 'rural', value: props.data?.overview?.rural },
+  { key: 'highVoltage', label: '高压', icon: 'urban', value: props.data?.overview?.highVoltage },
+  {
+    key: 'lowVoltageNonResidential',
+    label: '低压非居民',
+    icon: 'rural',
+    value: props.data?.overview?.lowVoltageNonResidential,
+  },
+  {
+    key: 'lowVoltageResidential',
+    label: '低压居民',
+    icon: 'residential',
+    value: props.data?.overview?.lowVoltageResidential,
+  },
 ])
 
 const keyOverviewItems = computed(() => {
@@ -142,12 +153,16 @@ const importantTypeLegend = computed(() => {
   ]
 })
 
-const usageTypeLegend = computed(() => [
-  { key: 'industrial', label: '大工业用电', color: '#4167ed', value: props.data?.userTypes?.usage?.industrial },
-  { key: 'commercial', label: '中小化肥', color: '#219ce5', value: props.data?.userTypes?.usage?.commercial },
-  { key: 'residential', label: '居民生活用电', color: '#7ca9f5', value: props.data?.userTypes?.usage?.residential },
-  { key: 'agricultural', label: '农业生产用电', color: '#70c6f2', value: props.data?.userTypes?.usage?.agricultural },
-  { key: 'irrigation', label: '贫困县农业排灌用电', color: '#8baff3', value: props.data?.userTypes?.usage?.irrigation },
+const eventTypeLegend = computed(() => [
+  { key: 'feederOutage', label: '馈线停电', color: '#4167ed', value: props.data?.userTypes?.events?.feederOutage },
+  { key: 'regionalFeederOutage', label: '区域馈线停电', color: '#219ce5', value: props.data?.userTypes?.events?.regionalFeederOutage },
+  { key: 'singleTransformerOutage', label: '单配变停电', color: '#7ca9f5', value: props.data?.userTypes?.events?.singleTransformerOutage },
+  { key: 'lowVoltageBranchOutage', label: '低压分支停电', color: '#70c6f2', value: props.data?.userTypes?.events?.lowVoltageBranchOutage },
+  { key: 'multiMeterBoxOutage', label: '多表箱停电', color: '#8baff3', value: props.data?.userTypes?.events?.multiMeterBoxOutage },
+  { key: 'singleHouseholdOutage', label: '单户停电', color: '#4ec9aa', value: props.data?.userTypes?.events?.singleHouseholdOutage },
+  { key: 'suddenLoadDrop', label: '负荷骤降', color: '#f3b64b', value: props.data?.userTypes?.events?.suddenLoadDrop },
+  { key: 'singleMediumVoltageUserOutage', label: '单中压用户停电', color: '#ef7b68', value: props.data?.userTypes?.events?.singleMediumVoltageUserOutage },
+  { key: 'meteringBoxOutage', label: '计量箱停电', color: '#9a72d8', value: props.data?.userTypes?.events?.meteringBoxOutage },
 ])
 
 const warningRules = [
@@ -557,11 +572,11 @@ watch(
           </article>
 
           <article class="donut-card">
-            <div class="donut-graphic" :style="donutStyle(usageTypeLegend)">
-              <span>用电类型</span>
+            <div class="donut-graphic" :style="donutStyle(eventTypeLegend)">
+              <span>事件类型</span>
             </div>
-            <div class="donut-legend usage">
-              <span v-for="item in usageTypeLegend" :key="item.key">
+            <div class="donut-legend event">
+              <span v-for="item in eventTypeLegend" :key="item.key">
                 <i :style="{ backgroundColor: item.color }"></i>{{ item.label }}
               </span>
             </div>
@@ -826,7 +841,7 @@ watch(
 .overview-summary-card {
   min-height: 0;
   display: grid;
-  grid-template-columns: 56% 44%;
+  grid-template-columns: 68% 32%;
   border: 1px solid #3ac9bd;
   border-radius: 7px;
   overflow: hidden;
@@ -836,7 +851,7 @@ watch(
 .overview-network-list {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
 }
 
@@ -861,6 +876,10 @@ watch(
 
 .network-icon.rural {
   color: #25bd83;
+}
+
+.network-icon.residential {
+  color: #e3a226;
 }
 
 .network-icon svg {
@@ -989,7 +1008,7 @@ watch(
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(108px, 1fr) auto;
+  grid-template-rows: minmax(108px, 1fr) 36px;
   justify-items: center;
   align-items: center;
 }
@@ -1034,11 +1053,13 @@ watch(
   line-height: 1.2;
 }
 
-.donut-legend.usage {
+.donut-legend.event {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, auto));
+  grid-template-columns: repeat(3, minmax(0, auto));
   justify-content: center;
-  column-gap: 7px;
+  gap: 2px 4px;
+  font-size: 8px;
+  line-height: 1.1;
 }
 
 .donut-legend span {

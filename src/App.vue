@@ -8560,7 +8560,7 @@ onBeforeUnmount(() => {
             :aria-pressed="isOutageAnalysisPage"
             @click.stop="switchPageTab('outageAnalysis')"
           >
-            停电用户分析
+            用户停电统计
           </button>
           <button
             v-show="false"
@@ -8579,7 +8579,7 @@ onBeforeUnmount(() => {
             :aria-pressed="isSensitiveDemandPage"
             @click.stop="switchPageTab('sensitiveDemand')"
           >
-            敏感诉求
+            敏感用户分析
           </button>
         </div>
 
