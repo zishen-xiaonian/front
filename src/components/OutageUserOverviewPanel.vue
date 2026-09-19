@@ -246,6 +246,19 @@ const ratioText = (item) => {
   }
 }
 
+const keyValueSizeClass = (item) => {
+  const ratio = ratioText(item)
+  if (!ratio) {
+    return ''
+  }
+
+  const digitCount = String(ratio.outage).length + String(ratio.total).length
+  if (digitCount >= 10) {
+    return 'key-value-extra-compact'
+  }
+  return digitCount >= 7 ? 'key-value-compact' : ''
+}
+
 const donutSegments = (items) => {
   const validItems = items.filter((item) => hasValue(item.value) && Number(item.value) > 0)
   const total = validItems.reduce((sum, item) => sum + Number(item.value), 0)
@@ -663,7 +676,11 @@ watch(
         </div>
 
         <div class="overview-key-list">
-          <p v-for="item in keyOverviewItems" :key="item.key">
+          <p
+            v-for="item in keyOverviewItems"
+            :key="item.key"
+            :class="keyValueSizeClass(item.value)"
+          >
             <span>{{ item.label }}</span>
             <template v-if="ratioText(item.value)">
               <strong>{{ ratioText(item.value).outage }}</strong><i>/</i><b>{{ ratioText(item.value).total }}</b><small>户</small>
@@ -1119,6 +1136,16 @@ watch(
   color: #20a977;
 }
 
+.overview-key-list p.key-value-compact strong,
+.overview-key-list p.key-value-compact b {
+  font-size: 13px;
+}
+
+.overview-key-list p.key-value-extra-compact strong,
+.overview-key-list p.key-value-extra-compact b {
+  font-size: 11px;
+}
+
 .network-value span,
 .overview-key-list i {
   color: #3bc2ae;
@@ -1153,7 +1180,8 @@ watch(
 }
 
 .overview-key-list p > span {
-  min-width: 64px;
+  min-width: 0;
+  flex: 1 1 64px;
   color: #293b3e;
   font-size: 13px;
 }
