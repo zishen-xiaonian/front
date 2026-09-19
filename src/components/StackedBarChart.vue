@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   labels: {
@@ -25,6 +25,8 @@ const plotBottom = 32
 const plotWidth = chartWidth - plotLeft - plotRight
 const plotHeight = chartHeight - plotTop - plotBottom
 const tickCount = 5
+const chartRoot = ref(null)
+const tooltip = ref(null)
 
 const safeNumber = (value) => {
   const number = Number(value)
@@ -122,10 +124,34 @@ const xLabelStep = computed(() => {
 
 const shouldShowXLabel = (index) =>
   index % xLabelStep.value === 0 || index === props.labels.length - 1
+
+const formatTooltipValue = (value) => Number(value).toLocaleString('zh-CN')
+
+const showTooltip = (event, bar, segment) => {
+  const bounds = chartRoot.value?.getBoundingClientRect()
+  if (!bounds) {
+    return
+  }
+
+  const minimumX = Math.min(76, bounds.width / 2)
+  const maximumX = Math.max(bounds.width - minimumX, minimumX)
+  tooltip.value = {
+    label: bar.label,
+    name: segment.name,
+    value: segment.value,
+    total: bar.total,
+    left: Math.max(minimumX, Math.min(maximumX, event.clientX - bounds.left)),
+    top: Math.max(62, event.clientY - bounds.top),
+  }
+}
+
+const hideTooltip = () => {
+  tooltip.value = null
+}
 </script>
 
 <template>
-  <div class="stacked-bar-chart">
+  <div ref="chartRoot" class="stacked-bar-chart" @mouseleave="hideTooltip">
     <div class="stacked-chart-meta">
       <span class="stacked-chart-unit">{{ unit }}</span>
       <div class="stacked-chart-legend" aria-label="图例">
@@ -174,6 +200,9 @@ const shouldShowXLabel = (index) =>
           :width="bar.width"
           :height="Math.max(segment.height, segment.value > 0 ? 1 : 0)"
           :fill="segment.color"
+          :aria-label="`${bar.label}，${segment.name}：${segment.value}`"
+          @mouseenter="showTooltip($event, bar, segment)"
+          @mousemove="showTooltip($event, bar, segment)"
         >
           <title>{{ bar.label }} · {{ segment.name }}：{{ segment.value }}</title>
         </rect>
@@ -189,11 +218,26 @@ const shouldShowXLabel = (index) =>
         </text>
       </g>
     </svg>
+
+    <div
+      v-if="tooltip"
+      class="stacked-chart-tooltip"
+      :style="{ left: `${tooltip.left}px`, top: `${tooltip.top}px` }"
+      role="status"
+    >
+      <span>{{ tooltip.label }}</span>
+      <strong>{{ tooltip.name }}：{{ formatTooltipValue(tooltip.value) }}</strong>
+      <small v-if="normalizedSeries.length > 1">
+        合计：{{ formatTooltipValue(tooltip.total) }}（{{ unit }}）
+      </small>
+      <small v-else>{{ unit }}</small>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .stacked-bar-chart {
+  position: relative;
   width: 100%;
   min-height: 0;
   height: 100%;
@@ -273,6 +317,7 @@ const shouldShowXLabel = (index) =>
 }
 
 .stacked-chart-column rect {
+  cursor: pointer;
   transition: opacity 0.18s ease, filter 0.18s ease;
 }
 
@@ -282,5 +327,50 @@ const shouldShowXLabel = (index) =>
 
 .stacked-chart-column:hover rect:not(:hover) {
   opacity: 0.86;
+}
+
+.stacked-chart-tooltip {
+  position: absolute;
+  z-index: 4;
+  min-width: 132px;
+  max-width: 210px;
+  display: grid;
+  gap: 2px;
+  transform: translate(-50%, calc(-100% - 9px));
+  border: 1px solid rgba(21, 161, 167, 0.48);
+  border-radius: 5px;
+  padding: 6px 8px;
+  color: #365256;
+  background: rgba(250, 255, 254, 0.97);
+  box-shadow: 0 5px 14px rgba(24, 100, 105, 0.2);
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.stacked-chart-tooltip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  transform: translateX(-50%) rotate(45deg);
+  border-right: 1px solid rgba(21, 161, 167, 0.48);
+  border-bottom: 1px solid rgba(21, 161, 167, 0.48);
+  background: rgba(250, 255, 254, 0.97);
+}
+
+.stacked-chart-tooltip span,
+.stacked-chart-tooltip small {
+  color: #718084;
+  font-weight: 400;
+}
+
+.stacked-chart-tooltip strong {
+  color: #183f45;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 </style>

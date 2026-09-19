@@ -1,6 +1,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import {
+  queryOutageAnalysisConsumerTypeSummary,
+  queryOutageAnalysisEventTypeSummary,
   queryOutageAnalysisImpactCounts,
   queryOutageAnalysisUserTypeSummary,
   queryOutageAnalysisWarningSummary,
@@ -30,6 +32,12 @@ const ranges = [
 ]
 
 const activeRange = ref('today')
+const liveConsumerTypeSummary = ref(null)
+const consumerTypeLoading = ref(false)
+const consumerTypeLoadError = ref('')
+const liveEventTypeSummary = ref(null)
+const eventTypeLoading = ref(false)
+const eventTypeLoadError = ref('')
 const liveImpact = ref(null)
 const impactLoading = ref(false)
 const impactLoadError = ref('')
@@ -47,9 +55,13 @@ const historyMinDate = ref('')
 const historyMaxDate = ref('')
 const historyRange = ref(null)
 const historyValidationError = ref('')
+const hoveredImportantType = ref(null)
+const hoveredEventType = ref(null)
 let impactRequestId = 0
 let warningRequestId = 0
 let userTypeSummaryRequestId = 0
+let consumerTypeRequestId = 0
+let eventTypeRequestId = 0
 
 const padDatePart = (value) => String(value).padStart(2, '0')
 
@@ -92,21 +104,38 @@ const subtractOneMonth = (date) => {
 
 const toApiDateTime = (value) => String(value || '').replace('T', ' ')
 
-const overviewItems = computed(() => [
-  { key: 'highVoltage', label: '高压', icon: 'urban', value: props.data?.overview?.highVoltage },
-  {
-    key: 'lowVoltageNonResidential',
-    label: '低压非居民',
-    icon: 'rural',
-    value: props.data?.overview?.lowVoltageNonResidential,
-  },
-  {
-    key: 'lowVoltageResidential',
-    label: '低压居民',
-    icon: 'residential',
-    value: props.data?.overview?.lowVoltageResidential,
-  },
-])
+const overviewItems = computed(() => {
+  const cards = liveConsumerTypeSummary.value?.cards
+  const toDisplayValue = (card, fallback) => card
+    ? { outage: card.outage, total: card.restored }
+    : fallback
+  return [
+    {
+      key: 'highVoltage',
+      label: '高压非居民',
+      icon: 'urban',
+      value: toDisplayValue(cards?.highVoltage, props.data?.overview?.highVoltage),
+    },
+    {
+      key: 'lowVoltageNonResidential',
+      label: '低压非居民',
+      icon: 'rural',
+      value: toDisplayValue(
+        cards?.lowVoltageNonResidential,
+        props.data?.overview?.lowVoltageNonResidential,
+      ),
+    },
+    {
+      key: 'lowVoltageResidential',
+      label: '低压居民',
+      icon: 'residential',
+      value: toDisplayValue(
+        cards?.lowVoltageResidential,
+        props.data?.overview?.lowVoltageResidential,
+      ),
+    },
+  ]
+})
 
 const keyOverviewItems = computed(() => {
   const cards = liveUserTypeSummary.value?.cards
@@ -153,17 +182,30 @@ const importantTypeLegend = computed(() => {
   ]
 })
 
-const eventTypeLegend = computed(() => [
-  { key: 'feederOutage', label: '馈线停电', color: '#4167ed', value: props.data?.userTypes?.events?.feederOutage },
-  { key: 'regionalFeederOutage', label: '区域馈线停电', color: '#219ce5', value: props.data?.userTypes?.events?.regionalFeederOutage },
-  { key: 'singleTransformerOutage', label: '单配变停电', color: '#7ca9f5', value: props.data?.userTypes?.events?.singleTransformerOutage },
-  { key: 'lowVoltageBranchOutage', label: '低压分支停电', color: '#70c6f2', value: props.data?.userTypes?.events?.lowVoltageBranchOutage },
-  { key: 'multiMeterBoxOutage', label: '多表箱停电', color: '#8baff3', value: props.data?.userTypes?.events?.multiMeterBoxOutage },
-  { key: 'singleHouseholdOutage', label: '单户停电', color: '#4ec9aa', value: props.data?.userTypes?.events?.singleHouseholdOutage },
-  { key: 'suddenLoadDrop', label: '负荷骤降', color: '#f3b64b', value: props.data?.userTypes?.events?.suddenLoadDrop },
-  { key: 'singleMediumVoltageUserOutage', label: '单中压用户停电', color: '#ef7b68', value: props.data?.userTypes?.events?.singleMediumVoltageUserOutage },
-  { key: 'meteringBoxOutage', label: '计量箱停电', color: '#9a72d8', value: props.data?.userTypes?.events?.meteringBoxOutage },
-])
+const eventTypeLegend = computed(() => {
+  const distribution = liveEventTypeSummary.value?.eventTypeDistribution
+    || props.data?.userTypes?.events
+    || {}
+  return [
+    { key: 'feederOutage', label: '馈线停电', color: '#4167ed', value: distribution.feederOutage },
+    { key: 'regionalFeederOutage', label: '区域馈线停电', color: '#219ce5', value: distribution.regionalFeederOutage },
+    { key: 'singleTransformerOutage', label: '单配变停电', color: '#7ca9f5', value: distribution.singleTransformerOutage },
+    { key: 'lowVoltageBranchOutage', label: '低压分支停电', color: '#70c6f2', value: distribution.lowVoltageBranchOutage },
+    { key: 'multiMeterBoxOutage', label: '多表箱停电', color: '#8baff3', value: distribution.multiMeterBoxOutage },
+    { key: 'singleHouseholdOutage', label: '单户停电', color: '#4ec9aa', value: distribution.singleHouseholdOutage },
+    { key: 'suddenLoadDrop', label: '负荷骤降', color: '#f3b64b', value: distribution.suddenLoadDrop },
+    { key: 'singleMediumVoltageUserOutage', label: '单中压用户停电', color: '#ef7b68', value: distribution.singleMediumVoltageUserOutage },
+    { key: 'meteringBoxOutage', label: '计量箱停电', color: '#9a72d8', value: distribution.meteringBoxOutage },
+  ]
+})
+
+const typeSummaryLoading = computed(() => (
+  consumerTypeLoading.value || eventTypeLoading.value || userTypeSummaryLoading.value
+))
+
+const typeSummaryLoadError = computed(() => (
+  consumerTypeLoadError.value || eventTypeLoadError.value || userTypeSummaryLoadError.value
+))
 
 const warningRules = [
   { key: 'extreme', label: '极度风险', compactLabel: '极度\n风险', threshold: '≥ 7次/日', color: '#96242f' },
@@ -204,20 +246,25 @@ const ratioText = (item) => {
   }
 }
 
-const donutStyle = (items) => {
+const donutSegments = (items) => {
   const validItems = items.filter((item) => hasValue(item.value) && Number(item.value) > 0)
   const total = validItems.reduce((sum, item) => sum + Number(item.value), 0)
   if (total <= 0) {
-    return { background: 'conic-gradient(#d7e8e8 0 100%)' }
+    return []
   }
 
   let cursor = 0
-  const stops = validItems.map((item) => {
+  return validItems.map((item) => {
     const start = cursor
-    cursor += (Number(item.value) / total) * 100
-    return `${item.color} ${start}% ${cursor}%`
+    const length = (Number(item.value) / total) * 100
+    cursor += length
+    return {
+      ...item,
+      value: Number(item.value),
+      start,
+      length,
+    }
   })
-  return { background: `conic-gradient(${stops.join(',')})` }
 }
 
 const impactBarWidth = (value) => {
@@ -396,6 +443,78 @@ const loadImpactCounts = async () => {
   }
 }
 
+const loadConsumerTypeSummary = async () => {
+  const payload = buildWarningPayload()
+  if (!payload) {
+    liveConsumerTypeSummary.value = null
+    consumerTypeLoadError.value = ''
+    return
+  }
+
+  const currentRequestId = ++consumerTypeRequestId
+  consumerTypeLoading.value = true
+  consumerTypeLoadError.value = ''
+  liveConsumerTypeSummary.value = null
+
+  try {
+    const response = await queryOutageAnalysisConsumerTypeSummary(payload)
+    if (currentRequestId !== consumerTypeRequestId) {
+      return
+    }
+    const summary = response?.data
+    if (!summary?.cards) {
+      throw new Error('停电用户分类接口返回格式不正确')
+    }
+    liveConsumerTypeSummary.value = summary
+  } catch (error) {
+    if (currentRequestId !== consumerTypeRequestId) {
+      return
+    }
+    consumerTypeLoadError.value = error?.message || '数据加载失败'
+    liveConsumerTypeSummary.value = null
+  } finally {
+    if (currentRequestId === consumerTypeRequestId) {
+      consumerTypeLoading.value = false
+    }
+  }
+}
+
+const loadEventTypeSummary = async () => {
+  const payload = buildWarningPayload()
+  if (!payload) {
+    liveEventTypeSummary.value = null
+    eventTypeLoadError.value = ''
+    return
+  }
+
+  const currentRequestId = ++eventTypeRequestId
+  eventTypeLoading.value = true
+  eventTypeLoadError.value = ''
+  liveEventTypeSummary.value = null
+
+  try {
+    const response = await queryOutageAnalysisEventTypeSummary(payload)
+    if (currentRequestId !== eventTypeRequestId) {
+      return
+    }
+    const summary = response?.data
+    if (!summary?.eventTypeDistribution) {
+      throw new Error('停电事件类型接口返回格式不正确')
+    }
+    liveEventTypeSummary.value = summary
+  } catch (error) {
+    if (currentRequestId !== eventTypeRequestId) {
+      return
+    }
+    eventTypeLoadError.value = error?.message || '数据加载失败'
+    liveEventTypeSummary.value = null
+  } finally {
+    if (currentRequestId === eventTypeRequestId) {
+      eventTypeLoading.value = false
+    }
+  }
+}
+
 const loadWarningCounts = async () => {
   const payload = buildWarningPayload()
   if (!payload) {
@@ -477,6 +596,8 @@ watch(
     () => historyRange.value?.endDate,
   ],
   () => {
+    void loadConsumerTypeSummary()
+    void loadEventTypeSummary()
     void loadImpactCounts()
     void loadWarningCounts()
     void loadUserTypeSummary()
@@ -488,7 +609,7 @@ watch(
 <template>
   <section
     class="outage-overview-panel"
-    :aria-busy="impactLoading || warningLoading || userTypeSummaryLoading"
+    :aria-busy="impactLoading || warningLoading || typeSummaryLoading"
   >
     <header class="overview-header">
       <div class="overview-heading">
@@ -552,16 +673,44 @@ watch(
         </div>
       </section>
 
-      <section class="overview-section user-type-section" :aria-busy="userTypeSummaryLoading">
+      <section class="overview-section user-type-section" :aria-busy="typeSummaryLoading">
         <div class="section-heading-row">
           <h3>停电用户类型</h3>
-          <span v-if="userTypeSummaryLoading">加载中...</span>
-          <span v-else-if="userTypeSummaryLoadError" class="warning-load-error">加载失败</span>
+          <span v-if="typeSummaryLoading">加载中...</span>
+          <span v-else-if="typeSummaryLoadError" class="warning-load-error">加载失败</span>
         </div>
         <div class="donut-grid">
           <article class="donut-card">
-            <div class="donut-graphic" :style="donutStyle(importantTypeLegend)">
-              <span>重要及<br />关键用户</span>
+            <div class="donut-graphic" @mouseleave="hoveredImportantType = null">
+              <svg class="donut-svg" viewBox="0 0 100 100" aria-label="重要及关键用户数量分布">
+                <circle class="donut-track" cx="50" cy="50" r="38" pathLength="100" />
+                <circle
+                  v-for="segment in donutSegments(importantTypeLegend)"
+                  :key="segment.key"
+                  class="donut-segment"
+                  cx="50"
+                  cy="50"
+                  r="38"
+                  pathLength="100"
+                  :stroke="segment.color"
+                  :stroke-dasharray="`${segment.length} ${100 - segment.length}`"
+                  :stroke-dashoffset="-segment.start"
+                  tabindex="0"
+                  :aria-label="`${segment.label}：${segment.value}户`"
+                  @mouseenter="hoveredImportantType = segment"
+                  @focus="hoveredImportantType = segment"
+                  @blur="hoveredImportantType = null"
+                >
+                  <title>{{ segment.label }}：{{ segment.value }}户</title>
+                </circle>
+              </svg>
+              <span class="donut-center">
+                <template v-if="hoveredImportantType">
+                  <b>{{ hoveredImportantType.label }}</b>
+                  <strong>{{ hoveredImportantType.value }}户</strong>
+                </template>
+                <template v-else>重要及<br />关键用户</template>
+              </span>
             </div>
             <div class="donut-legend compact">
               <span v-for="item in importantTypeLegend" :key="item.key">
@@ -572,8 +721,36 @@ watch(
           </article>
 
           <article class="donut-card">
-            <div class="donut-graphic" :style="donutStyle(eventTypeLegend)">
-              <span>事件类型</span>
+            <div class="donut-graphic" @mouseleave="hoveredEventType = null">
+              <svg class="donut-svg" viewBox="0 0 100 100" aria-label="停电事件类型数量分布">
+                <circle class="donut-track" cx="50" cy="50" r="38" pathLength="100" />
+                <circle
+                  v-for="segment in donutSegments(eventTypeLegend)"
+                  :key="segment.key"
+                  class="donut-segment"
+                  cx="50"
+                  cy="50"
+                  r="38"
+                  pathLength="100"
+                  :stroke="segment.color"
+                  :stroke-dasharray="`${segment.length} ${100 - segment.length}`"
+                  :stroke-dashoffset="-segment.start"
+                  tabindex="0"
+                  :aria-label="`${segment.label}：${segment.value}次`"
+                  @mouseenter="hoveredEventType = segment"
+                  @focus="hoveredEventType = segment"
+                  @blur="hoveredEventType = null"
+                >
+                  <title>{{ segment.label }}：{{ segment.value }}次</title>
+                </circle>
+              </svg>
+              <span class="donut-center">
+                <template v-if="hoveredEventType">
+                  <b>{{ hoveredEventType.label }}</b>
+                  <strong>{{ hoveredEventType.value }}次</strong>
+                </template>
+                <template v-else>事件类型</template>
+              </span>
             </div>
             <div class="donut-legend event">
               <span v-for="item in eventTypeLegend" :key="item.key">
@@ -908,19 +1085,31 @@ watch(
 }
 
 .network-value {
+  width: 100%;
   display: flex;
+  min-width: 0;
   align-items: baseline;
-  gap: 3px;
+  justify-content: center;
+  gap: 1px;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
-.network-value strong,
+.network-value strong {
+  color: #ff4d54;
+  font-size: 14px;
+}
+
+.network-value b {
+  color: #213238;
+  font-size: 14px;
+}
+
 .overview-key-list strong {
   color: #ff4d54;
   font-size: 16px;
 }
 
-.network-value b,
 .overview-key-list b {
   color: #213238;
   font-size: 16px;
@@ -938,7 +1127,8 @@ watch(
 
 .network-value small,
 .overview-key-list small {
-  font-size: 11px;
+  flex: 0 0 auto;
+  font-size: 10px;
 }
 
 .network-item p {
@@ -1023,22 +1213,66 @@ watch(
   filter: drop-shadow(0 8px 5px rgba(25, 181, 177, 0.13));
 }
 
-.donut-graphic::before {
-  content: '';
+.donut-svg {
   position: absolute;
-  inset: 24%;
-  border-radius: 50%;
-  background: #f3fbfa;
-  box-shadow: 0 0 0 1px rgba(77, 177, 174, 0.12);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform: rotate(-90deg);
 }
 
-.donut-graphic span {
+.donut-track,
+.donut-segment {
+  fill: none;
+  stroke-width: 24;
+}
+
+.donut-track {
+  stroke: #d7e8e8;
+}
+
+.donut-segment {
+  cursor: pointer;
+  transition: filter 0.16s ease, stroke-width 0.16s ease;
+}
+
+.donut-segment:hover,
+.donut-segment:focus {
+  stroke-width: 27;
+  filter: brightness(1.06) drop-shadow(0 0 2px rgba(20, 104, 111, 0.34));
+  outline: none;
+}
+
+.donut-center {
   position: relative;
   z-index: 1;
+  width: 50%;
+  min-height: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   color: #5f6c70;
   font-size: 12px;
   line-height: 1.35;
   text-align: center;
+  pointer-events: none;
+}
+
+.donut-center b {
+  max-width: 100%;
+  font-size: 9px;
+  line-height: 1.2;
+  font-weight: 500;
+}
+
+.donut-center strong {
+  margin-top: 2px;
+  color: #203f44;
+  font-size: 12px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
 .donut-legend {
