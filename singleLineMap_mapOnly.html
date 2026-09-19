@@ -226,6 +226,10 @@
             width: min(720px, calc(100vw - 48px));
         }
 
+        .sensitive-demand-user-locate-popup {
+            width: min(420px, calc(100vw - 48px));
+        }
+
         .mapboxgl-popup-content:has(.user-locate-popup),
         .maplibregl-popup-content:has(.user-locate-popup) {
             padding: 0;
@@ -301,6 +305,40 @@
         .time-trend-user-locate-popup .user-locate-popup-address-row {
             white-space: normal;
             overflow-wrap: anywhere;
+        }
+
+        .sensitive-demand-user-locate-popup .user-locate-popup-row {
+            white-space: normal;
+        }
+
+        .user-locate-popup-demands {
+            display: grid;
+            gap: 6px;
+        }
+
+        .user-locate-popup-demands-title {
+            margin: 2px 0 0;
+            color: #8edcff;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .user-locate-popup-demand {
+            display: grid;
+            gap: 4px;
+            margin: 0;
+            padding: 7px 8px;
+            border: 1px solid rgba(108, 191, 255, 0.25);
+            border-radius: 6px;
+            background: rgba(8, 31, 58, 0.72);
+            color: #eaf8ff;
+            font-size: 12px;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        .user-locate-popup-demand strong {
+            color: #8edcff;
         }
 
         .user-locate-popup-row span {
@@ -434,6 +472,9 @@
     let pendingSpaceDeviceLocatePayload = null;
     let activeSpaceDistributionDevice = null;
     let outageFocusMarker = null;
+    let spaceDeviceLocateSequence = 0;
+    let spaceDeviceFocusTimerIds = [];
+    let spaceDeviceMoveEndHandler = null;
     let outageAnalysisCountyCountMarkers = [];
     let pendingOutageAnalysisCountyCounts = null;
     let capturedAmapToken = "";
@@ -591,6 +632,17 @@
             outageFocusMarker.remove();
         }
         outageFocusMarker = null;
+    }
+
+    function clearSpaceDeviceFocusSync() {
+        spaceDeviceFocusTimerIds.forEach((timerId) => window.clearTimeout(timerId));
+        spaceDeviceFocusTimerIds = [];
+        if (spaceDeviceMoveEndHandler && mapInstance && typeof mapInstance.off === "function") {
+            try {
+                mapInstance.off("moveend", spaceDeviceMoveEndHandler);
+            } catch (_error) {}
+        }
+        spaceDeviceMoveEndHandler = null;
     }
 
     function createOutageFocusMarkerElement(popupDevice = null) {
@@ -892,7 +944,23 @@
 
     function getUserLocatePopupContent(userDetail) {
         const isTimeTrendDetail = userDetail?.popupMode === "timeTrend";
-        const rows = isTimeTrendDetail
+        const isSensitiveDemandTopDetail = userDetail?.popupMode === "sensitiveDemandTop";
+        const isSensitiveDemandAutoDetail = userDetail?.popupMode === "sensitiveDemandAutoDetail";
+        const rows = isSensitiveDemandAutoDetail
+            ? [
+                ["用户编号：", userDetail?.consNo],
+                ["姓名：", userDetail?.consName],
+                ["电话：", userDetail?.phone],
+                ["用户类型：", userDetail?.userType],
+            ]
+            : isSensitiveDemandTopDetail
+            ? [
+                ["用户编号：", userDetail?.consNo],
+                ["用户姓名：", userDetail?.consName],
+                ["用户电话：", userDetail?.phone],
+                ["诉求次数：", userDetail?.appealCount],
+            ]
+            : isTimeTrendDetail
             ? [
                 ["用户编号：", userDetail?.consNo],
                 ["用户姓名：", userDetail?.consName],
@@ -914,13 +982,35 @@
                 return `<p class="user-locate-popup-row${addressClass}"><span>${escapeHtml(label)}</span>${escapeHtml(value || "-")}</p>`;
             })
             .join("");
+        const demandContents = Array.isArray(userDetail?.demandContents) ? userDetail.demandContents : [];
+        const demandHtml = isSensitiveDemandAutoDetail
+            ? `
+                <div class="user-locate-popup-demands">
+                    <p class="user-locate-popup-demands-title">诉求内容</p>
+                    ${demandContents.length > 0
+                        ? demandContents.map((item) => `
+                            <p class="user-locate-popup-demand">
+                                <strong>${escapeHtml(item?.time || "-")}</strong>
+                                <span>${escapeHtml(item?.content || "-")}</span>
+                            </p>
+                        `).join("")
+                        : '<p class="user-locate-popup-demand">暂无诉求详情</p>'}
+                </div>
+            `
+            : "";
+        const popupClass = [
+            "user-locate-popup",
+            isTimeTrendDetail ? "time-trend-user-locate-popup" : "",
+            isSensitiveDemandAutoDetail ? "sensitive-demand-user-locate-popup" : "",
+        ].filter(Boolean).join(" ");
 
         return `
-            <div class="user-locate-popup${isTimeTrendDetail ? " time-trend-user-locate-popup" : ""}">
+            <div class="${popupClass}">
                 <button type="button" class="user-locate-popup-close" data-user-locate-popup-close aria-label="关闭">×</button>
-                <p class="user-locate-popup-head">用户详情</p>
+                <p class="user-locate-popup-head">${isSensitiveDemandAutoDetail ? "客户诉求详情" : "用户详情"}</p>
                 <div class="user-locate-popup-list">
                     ${rowHtml}
+                    ${demandHtml}
                 </div>
             </div>
         `;
@@ -1334,6 +1424,8 @@
     }
 
     function locateOutageFeeder(payload) {
+        spaceDeviceLocateSequence += 1;
+        clearSpaceDeviceFocusSync();
         pendingFeederLocatePayload = payload ?? null;
         activeSpaceDistributionDevice = null;
         clearOutageFocusMarker();
@@ -1504,6 +1596,8 @@
     }
 
     function locateOutageChain(payload) {
+        spaceDeviceLocateSequence += 1;
+        clearSpaceDeviceFocusSync();
         pendingChainLocatePayload = payload ?? null;
         activeSpaceDistributionDevice = null;
         clearOutageFocusMarker();
@@ -1552,6 +1646,9 @@
     }
 
     function locateSpaceDistributionDevice(payload) {
+        spaceDeviceLocateSequence += 1;
+        const locateSequence = spaceDeviceLocateSequence;
+        clearSpaceDeviceFocusSync();
         pendingSpaceDeviceLocatePayload = payload ?? null;
         activeOutageChainSubstation = null;
         clearFeederPopup();
@@ -1608,14 +1705,33 @@
             return;
         }
 
+        const locatedDevice = activeSpaceDistributionDevice;
+        const isCurrentLocate = function () {
+            return locateSequence === spaceDeviceLocateSequence &&
+                activeSpaceDistributionDevice === locatedDevice;
+        };
+        const syncFocusMark = function () {
+            if (!isCurrentLocate()) {
+                return;
+            }
+            setOutageFocusMarker(getMapCenterLngLat(), locatedDevice);
+        };
+
         const markCenter = function (delay) {
-            window.setTimeout(function () {
-                setOutageFocusMarker(getMapCenterLngLat(), activeSpaceDistributionDevice);
-            }, delay);
+            const timerId = window.setTimeout(syncFocusMark, delay);
+            spaceDeviceFocusTimerIds.push(timerId);
         };
         const scheduleFocusMark = function () {
-            [120, 420, 900, 1500, 2300].forEach(markCenter);
+            [120, 420, 900, 1500, 2300, 3500].forEach(markCenter);
         };
+
+        if (mapInstance && typeof mapInstance.once === "function") {
+            spaceDeviceMoveEndHandler = function () {
+                spaceDeviceMoveEndHandler = null;
+                syncFocusMark();
+            };
+            mapInstance.once("moveend", spaceDeviceMoveEndHandler);
+        }
 
         if (flyResult && typeof flyResult.then === "function") {
             flyResult

@@ -843,16 +843,29 @@ const buildOneMapUserDetailPayload = (item, popupMode = '') => {
   }
 
   const resolvedPopupMode = popupMode || item.popupMode || 'userTag'
+  const demandContents = Array.isArray(item.demandContents)
+    ? item.demandContents
+      .map((entry) => ({
+        time: String(entry?.time || '').trim(),
+        content: String(entry?.content || '').trim(),
+      }))
+      .filter((entry) => entry.time || entry.content)
+    : []
 
   return {
-    popupMode: resolvedPopupMode === 'timeTrend' ? 'timeTrend' : 'userTag',
+    popupMode: ['timeTrend', 'sensitiveDemandTop', 'sensitiveDemandAutoDetail'].includes(resolvedPopupMode)
+      ? resolvedPopupMode
+      : 'userTag',
     consNo: String(item.consNo || '').trim() || '-',
     consName: String(item.consName || '').trim() || '-',
+    phone: String(item.phone || '').trim() || '-',
+    appealCount: String(item.count ?? item.appealCount ?? '').trim() || '-',
     outageCount: String(item.outageCount ?? '').trim() || '-',
     countyName: String(item.countyName || '').trim() || '-',
     tradeName: String(item.tradeName || '').trim() || '-',
     consAddr: String(item.consAddr || '').trim() || '-',
     userType: String(item.outageNature || item.userType || '').trim() || '-',
+    demandContents,
   }
 }
 
@@ -4532,7 +4545,7 @@ const sensitiveDemandUserTypeFieldMeta = {
     { key: 'light', field: '轻度敏感客户', fieldAliases: ['type3_cnt'], label: '轻度敏感客户', chartLabel: '轻度敏感', filterValue: '轻度敏感客户', color: '#b84cff' },
     { key: 'medium', field: '中度敏感客户', fieldAliases: ['type1_cnt'], label: '中度敏感客户', chartLabel: '中度敏感', filterValue: '中度敏感客户', color: SENSITIVE_DEMAND_USER_TAG_COLORS.sensitive },
     { key: 'high', field: '高度敏感客户', fieldAliases: ['type4_cnt'], label: '高度敏感客户', chartLabel: '高度敏感', filterValue: '高度敏感客户', color: '#ff2bb3' },
-    { key: 'extreme', field: '极端敏感客户', fieldAliases: ['type2_cnt'], label: '极端敏感客户', chartLabel: '极端敏感', filterValue: '极端敏感客户', color: '#ff8a00' },
+    { key: 'extreme', field: '极端高危客户', fieldAliases: ['type2_cnt', '极端敏感客户'], label: '极端高危客户', chartLabel: '极端敏感', filterValue: '极端高危客户', color: '#ff8a00' },
   ],
   special: [
     { key: 'unreasonable', field: '不合理诉求客户', fieldAliases: ['unreasonable_appeal_cnt', 'unreasonable_appeal'], label: '不合理诉求客户', chartLabel: '不合理诉求', filterValue: '不合理诉求客户', color: SENSITIVE_DEMAND_USER_TAG_COLORS.special },
@@ -4946,6 +4959,11 @@ const mapSensitiveDemandTopUser = (item, index) => {
     demandContents: [],
     warningBasis: [],
   }
+}
+
+const selectSensitiveDemandTopUser = (item) => {
+  selectedSensitiveDemandUserKey.value = item.key
+  void syncOneMapMeterBoxId(item.consNo, item, 'sensitiveDemandTop')
 }
 
 const mapSensitiveDemandAppealRecords = (records = []) =>
@@ -5367,12 +5385,13 @@ const loadSensitiveDemandAutoDetailRows = async () => {
 
 const openSensitiveDemandAutoDetailTableUser = async (item) => {
   selectedSensitiveDemandAutoDetailTableUser.value = item
-  void syncOneMapMeterBoxId(item?.consNo, item)
   const group = selectedSensitiveDemandAutoDetailGroup.value
   if (!item?.consNo || !group?.detailQuery || !sensitiveDemandDatePayload.value) {
+    void syncOneMapMeterBoxId(item?.consNo, item, 'sensitiveDemandAutoDetail')
     return
   }
 
+  let resolvedUser = item
   sensitiveDemandAutoDetailDetailLoading.value = true
   try {
     const response = await group.detailQuery({
@@ -5380,16 +5399,20 @@ const openSensitiveDemandAutoDetailTableUser = async (item) => {
       cust_no: item.consNo,
     })
     const rows = getSensitiveAppealArrayData(response)
+    resolvedUser = {
+      ...item,
+      demandContents: mapSensitiveDemandAppealRecords(rows),
+    }
     if (selectedSensitiveDemandAutoDetailTableUser.value?.key === item.key) {
-      selectedSensitiveDemandAutoDetailTableUser.value = {
-        ...item,
-        demandContents: mapSensitiveDemandAppealRecords(rows),
-      }
+      selectedSensitiveDemandAutoDetailTableUser.value = resolvedUser
     }
   } catch (error) {
     console.error(error)
   } finally {
     sensitiveDemandAutoDetailDetailLoading.value = false
+    if (selectedSensitiveDemandAutoDetailTableUser.value?.key === item.key) {
+      void syncOneMapMeterBoxId(item.consNo, resolvedUser, 'sensitiveDemandAutoDetail')
+    }
   }
 }
 
@@ -8256,7 +8279,7 @@ onBeforeUnmount(() => {
                         :key="item.key"
                         class="sensitive-demand-user-item"
                         :class="{ active: item.key === selectedSensitiveDemandUserKey }"
-                        @click="selectedSensitiveDemandUserKey = item.key"
+                        @click="selectSensitiveDemandTopUser(item)"
                       >
                         <div class="sensitive-demand-user-info">
                           <p :title="item.consNo">用户编号：{{ item.consNo }}</p>
