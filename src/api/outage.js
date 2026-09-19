@@ -51,6 +51,9 @@ const OUTAGE_USER_ANALYSIS_API =
   import.meta.env.VITE_OUTAGE_USER_ANALYSIS_API || '/api/v1/outage-users/analysis-overview'
 const OUTAGE_ANALYSIS_REGIONS_API =
   import.meta.env.VITE_OUTAGE_ANALYSIS_REGIONS_API || '/api/v1/outage-analysis/regions'
+const OUTAGE_ANALYSIS_MAP_COUNTS_API =
+  import.meta.env.VITE_OUTAGE_ANALYSIS_MAP_COUNTS_API ||
+  '/api/v1/outage-analysis/map-county-counts'
 const OUTAGE_ANALYSIS_IMPACT_COUNTS_API =
   import.meta.env.VITE_OUTAGE_ANALYSIS_IMPACT_COUNTS_API ||
   '/api/v1/outage-analysis/impact-scale-counts'
@@ -180,6 +183,11 @@ export const queryOutageUserAnalysisOverview = (params) =>
 
 export const queryOutageAnalysisRegions = () =>
   getJson(OUTAGE_ANALYSIS_REGIONS_API, {}, {
+    timeout: DEFAULT_STATS_TIMEOUT,
+  })
+
+export const queryOutageAnalysisMapCountyCounts = (params) =>
+  postJson(OUTAGE_ANALYSIS_MAP_COUNTS_API, params, {
     timeout: DEFAULT_STATS_TIMEOUT,
   })
 

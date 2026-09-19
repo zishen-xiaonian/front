@@ -4,32 +4,39 @@ import { ref, watch } from 'vue'
 const emit = defineEmits(['change'])
 
 const eventOptions = ref([
-  { key: 'overThousand', label: '超千户', icon: 'users', color: '#ff4050', checked: false },
-  { key: 'coalToElectricity', label: '煤改电', icon: 'electricity', color: '#12c7a1', checked: false },
-  { key: 'importantUser', label: '重要用户', icon: 'important', color: '#f1a51d', checked: false },
+  { key: 'overThousand', label: '超千户', icon: 'users', color: '#ff4050' },
+  { key: 'coalToElectricity', label: '煤改电', icon: 'electricity', color: '#12c7a1' },
+  { key: 'importantUser', label: '重要用户', icon: 'important', color: '#f1a51d' },
 ])
 
 const warningOptions = ref([
-  { key: 'extreme', label: '极度风险', color: '#b229d1', checked: false },
-  { key: 'exceptional', label: '特大风险', color: '#ff2036', checked: false },
-  { key: 'severe', label: '重大风险', color: '#f34a2e', checked: false },
-  { key: 'major', label: '较大风险', color: '#ff7c25', checked: false },
-  { key: 'medium', label: '中度风险', color: '#f2b12a', checked: false },
-  { key: 'mild', label: '轻度风险', color: '#21d898', checked: false },
+  { key: 'extreme', label: '极度风险', color: '#b229d1' },
+  { key: 'exceptional', label: '特大风险', color: '#ff2036' },
+  { key: 'severe', label: '重大风险', color: '#f34a2e' },
+  { key: 'major', label: '较大风险', color: '#ff7c25' },
+  { key: 'medium', label: '中度风险', color: '#f2b12a' },
+  { key: 'mild', label: '轻度风险', color: '#21d898' },
 ])
 
 const activeTool = ref('location')
+const activeMetric = ref('')
+
+const toggleMetric = (metricKey) => {
+  activeMetric.value = activeMetric.value === metricKey ? '' : metricKey
+}
 
 const emitSelection = () => {
+  const selectedEvent = eventOptions.value.find((item) => item.key === activeMetric.value)
+  const selectedWarning = warningOptions.value.find((item) => item.key === activeMetric.value)
   emit('change', {
-    eventTypes: eventOptions.value.filter((item) => item.checked).map((item) => item.key),
-    warningLevels: warningOptions.value.filter((item) => item.checked).map((item) => item.key),
+    metricKey: activeMetric.value,
+    eventTypes: selectedEvent ? [selectedEvent.key] : [],
+    warningLevels: selectedWarning ? [selectedWarning.key] : [],
     toolMode: activeTool.value,
   })
 }
 
-watch([eventOptions, warningOptions, activeTool], emitSelection, {
-  deep: true,
+watch([activeMetric, activeTool], emitSelection, {
   immediate: true,
 })
 </script>
@@ -40,9 +47,9 @@ watch([eventOptions, warningOptions, activeTool], emitSelection, {
       <svg class="map-filter-frame" viewBox="0 0 190 350" preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id="map-filter-surface" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#07536c" stop-opacity="0.96" />
-            <stop offset="0.48" stop-color="#033a58" stop-opacity="0.97" />
-            <stop offset="1" stop-color="#022840" stop-opacity="0.98" />
+            <stop offset="0" stop-color="#07536c" stop-opacity="0.7" />
+            <stop offset="0.48" stop-color="#033a58" stop-opacity="0.74" />
+            <stop offset="1" stop-color="#022840" stop-opacity="0.78" />
           </linearGradient>
           <linearGradient id="map-filter-outline" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stop-color="#23d6e0" />
@@ -96,7 +103,12 @@ watch([eventOptions, warningOptions, activeTool], emitSelection, {
               </svg>
             </span>
             <span class="map-filter-label">{{ item.label }}</span>
-            <input v-model="item.checked" class="map-filter-checkbox" type="checkbox" />
+            <input
+              class="map-filter-checkbox"
+              type="checkbox"
+              :checked="activeMetric === item.key"
+              @change="toggleMetric(item.key)"
+            />
             <span class="map-filter-checkmark" aria-hidden="true"></span>
           </label>
         </div>
@@ -111,7 +123,12 @@ watch([eventOptions, warningOptions, activeTool], emitSelection, {
           <label v-for="item in warningOptions" :key="item.key" class="map-filter-option">
             <span class="warning-option-dot" :style="{ backgroundColor: item.color, color: item.color }"></span>
             <span class="map-filter-label">{{ item.label }}</span>
-            <input v-model="item.checked" class="map-filter-checkbox" type="checkbox" />
+            <input
+              class="map-filter-checkbox"
+              type="checkbox"
+              :checked="activeMetric === item.key"
+              @change="toggleMetric(item.key)"
+            />
             <span class="map-filter-checkmark" aria-hidden="true"></span>
           </label>
         </div>

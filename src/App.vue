@@ -2,6 +2,7 @@
 import './style.css'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
+  queryOutageAnalysisMapCountyCounts,
   queryOutageAnalysisRegions,
   queryOutageUserCounties,
   queryOutageUserCountyUserCount,
@@ -75,6 +76,24 @@ const countyCenterMap = {
   滦州市: [118.699, 39.744],
 }
 
+const outageAnalysisCountyMarkerCenterMap = {
+  遵化市: [117.92, 40.18],
+  迁西县: [118.3, 40.18],
+  迁安市: [118.73, 40.05],
+  玉田县: [117.72, 39.88],
+  丰润区: [118.03, 39.95],
+  高新区: [118.02, 39.78],
+  路北: [118.04, 39.61],
+  路南: [118.16, 39.47],
+  丰南区: [118.02, 39.34],
+  开平: [118.3, 39.59],
+  古冶: [118.45, 39.75],
+  滦州市: [118.67, 39.61],
+  滦南县: [118.62, 39.43],
+  乐亭县: [118.91, 39.3],
+  曹妃甸区: [118.43, 39.1],
+}
+
 const amapKey = import.meta.env.VITE_AMAP_KEY || '18757937d56dd908ebb8493c2cbfdc59'
 const amapSecurityJsCode = import.meta.env.VITE_AMAP_SECURITY_CODE || '822cf0516f173ce886ab3d24e1c2d459'
 const keyUserCountyMarkersMessageType = 'KEY_USER_COUNTY_MARKERS'
@@ -86,6 +105,8 @@ const mapSpaceDeviceLocateMessageType = 'MAP_SPACE_DEVICE_LOCATE'
 const mapOutageChainLocateMessageType = 'MAP_OUTAGE_CHAIN_LOCATE'
 const amapTokenCapturedMessageType = 'AMAP_TOKEN_CAPTURED'
 const mapOutageAnalysisFiltersMessageType = 'MAP_OUTAGE_ANALYSIS_FILTERS'
+const mapOutageAnalysisCountyCountsMessageType = 'MAP_OUTAGE_ANALYSIS_COUNTY_COUNTS'
+const mapOutageAnalysisCountyCountsClearMessageType = 'MAP_OUTAGE_ANALYSIS_COUNTY_COUNTS_CLEAR'
 const mapOutageChainProvinceId = '1100F3DE20806FADE050007F01006CBE'
 const outageChainFeederDevType = 'dkx'
 const outageChainSubstationDevType = 'zf01'
@@ -121,8 +142,10 @@ const isOutageAnalysisPage = computed(() => activePageTab.value === 'outageAnaly
 const isOutageUsersPage = computed(() => activePageTab.value === 'outageUsers')
 const isSensitiveDemandPage = computed(() => activePageTab.value === 'sensitiveDemand')
 const outageAnalysisMapFilters = ref(null)
-const outageAnalysisQueryType = ref('line')
-const outageAnalysisQueryKeyword = ref('')
+const outageAnalysisMapCountyCounts = ref(null)
+const outageAnalysisMapCountsLoading = ref(false)
+const outageAnalysisMapCountsError = ref('')
+let outageAnalysisMapCountsRequestId = 0
 const currentCalendarTime = ref(new Date())
 const weekdayLabels = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
 const topbarDateText = computed(() => {
@@ -604,6 +627,11 @@ const getCountyCenter = (countyName) => {
   return [tangshanCenter[0] + lngOffset, tangshanCenter[1] + latOffset]
 }
 
+const getOutageAnalysisCountyMarkerCenter = (countyName) => {
+  const normalized = normalizeCountyName(countyName)
+  return outageAnalysisCountyMarkerCenterMap[normalized] || getCountyCenter(countyName)
+}
+
 const postMessageToMapFrame = (message) => {
   const targetWindow = mapFrameRef.value?.contentWindow
   if (!targetWindow) {
@@ -627,13 +655,84 @@ const syncOutageAnalysisMapFiltersToMapFrame = () => {
   })
 }
 
-const handleOutageAnalysisMapControlsChange = (filters) => {
-  outageAnalysisMapFilters.value = filters
-  syncOutageAnalysisMapFiltersToMapFrame()
+const buildOutageAnalysisCountyCountMarkers = (data) => {
+  const counties = Array.isArray(data?.counties) ? data.counties : []
+  return counties.map((county) => ({
+    countyId: String(county?.countyId || '').trim(),
+    countyName: String(county?.countyName || '').trim(),
+    count: Math.max(safeNumber(county?.count), 0),
+    metric: String(data?.metric || '').trim(),
+    label: String(data?.label || '').trim(),
+    unit: String(data?.unit || '').trim(),
+    lngLat: getOutageAnalysisCountyMarkerCenter(county?.countyName),
+  }))
 }
 
-const applyOutageAnalysisQuery = () => {
+const syncOutageAnalysisCountyCountsToMapFrame = () => {
+  if (!isOutageAnalysisPage.value || !outageAnalysisMapCountyCounts.value) {
+    postMessageToMapFrame({ type: mapOutageAnalysisCountyCountsClearMessageType })
+    return
+  }
+
+  postMessageToMapFrame({
+    type: mapOutageAnalysisCountyCountsMessageType,
+    payload: {
+      metric: outageAnalysisMapCountyCounts.value.metric,
+      label: outageAnalysisMapCountyCounts.value.label,
+      unit: outageAnalysisMapCountyCounts.value.unit,
+      counties: buildOutageAnalysisCountyCountMarkers(outageAnalysisMapCountyCounts.value),
+    },
+  })
+}
+
+const loadOutageAnalysisMapCountyCounts = async (metricKey) => {
+  const requestId = ++outageAnalysisMapCountsRequestId
+  if (!metricKey) {
+    outageAnalysisMapCountyCounts.value = null
+    outageAnalysisMapCountsLoading.value = false
+    outageAnalysisMapCountsError.value = ''
+    syncOutageAnalysisCountyCountsToMapFrame()
+    return
+  }
+
+  outageAnalysisMapCountyCounts.value = null
+  syncOutageAnalysisCountyCountsToMapFrame()
+  outageAnalysisMapCountsLoading.value = true
+  outageAnalysisMapCountsError.value = ''
+  try {
+    const response = await queryOutageAnalysisMapCountyCounts({
+      metric: metricKey,
+      endTime: formatBackendDateTime(new Date()),
+    })
+    if (requestId !== outageAnalysisMapCountsRequestId) {
+      return
+    }
+    const data = response?.data
+    if (!data || !Array.isArray(data.counties)) {
+      throw new Error('地图统计接口返回格式不正确')
+    }
+    outageAnalysisMapCountyCounts.value = data
+    syncOutageAnalysisCountyCountsToMapFrame()
+  } catch (error) {
+    if (requestId !== outageAnalysisMapCountsRequestId) {
+      return
+    }
+    console.error(error)
+    outageAnalysisMapCountyCounts.value = null
+    outageAnalysisMapCountsError.value = error?.message || '地图统计加载失败'
+    syncOutageAnalysisCountyCountsToMapFrame()
+  } finally {
+    if (requestId === outageAnalysisMapCountsRequestId) {
+      outageAnalysisMapCountsLoading.value = false
+    }
+  }
+}
+
+const handleOutageAnalysisMapControlsChange = (filters) => {
+  outageAnalysisMapFilters.value = filters
   syncCountyFocusToMapFrame()
+  syncOutageAnalysisMapFiltersToMapFrame()
+  void loadOutageAnalysisMapCountyCounts(filters?.metricKey || '')
 }
 
 const buildKeyUserCountyMarkerPayload = () =>
@@ -658,9 +757,13 @@ const syncKeyUserCountyMarkersToMapFrame = () => {
 }
 
 const syncCountyFocusToMapFrame = () => {
-  const regionName = isOutageAnalysisPage.value
-    ? outageAnalysisSelectedRegionName.value
-    : selectedRegion.value
+  const shouldKeepOutageAnalysisOverview =
+    isOutageAnalysisPage.value && Boolean(outageAnalysisMapFilters.value?.metricKey)
+  const regionName = shouldKeepOutageAnalysisOverview
+    ? '全部'
+    : isOutageAnalysisPage.value
+      ? outageAnalysisSelectedRegionName.value
+      : selectedRegion.value
   if (regionName === '全部') {
     postMessageToMapFrame({
       type: mapCountyFocusMessageType,
@@ -682,6 +785,7 @@ const handleMapFrameLoad = () => {
   syncKeyUserCountyMarkersToMapFrame()
   syncCountyFocusToMapFrame()
   syncOutageAnalysisMapFiltersToMapFrame()
+  syncOutageAnalysisCountyCountsToMapFrame()
 }
 
 const handleMapFrameMessage = (event) => {
@@ -693,6 +797,7 @@ const handleMapFrameMessage = (event) => {
     syncKeyUserCountyMarkersToMapFrame()
     syncCountyFocusToMapFrame()
     syncOutageAnalysisMapFiltersToMapFrame()
+    syncOutageAnalysisCountyCountsToMapFrame()
     return
   }
 
@@ -7305,8 +7410,10 @@ const switchPageTab = (tab) => {
     countyEquipmentPageTotal.value = 0
   }
   if (activePageTab.value === 'sensitiveDemand') {
+    syncOutageAnalysisCountyCountsToMapFrame()
     void applyTimeFilter()
   } else if (activePageTab.value === 'outageUsers') {
+    syncOutageAnalysisCountyCountsToMapFrame()
     void loadDashboardData(null, { includeDetailPages: false })
   } else if (activePageTab.value === 'outageAnalysis') {
     if (!outageAnalysisCity.value && !outageAnalysisRegionsLoading.value) {
@@ -7314,6 +7421,7 @@ const switchPageTab = (tab) => {
     }
     nextTick(() => {
       syncCountyFocusToMapFrame()
+      syncOutageAnalysisCountyCountsToMapFrame()
     })
   }
 }
@@ -8475,24 +8583,10 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <form
+        <div
           v-if="isOutageAnalysisPage"
           class="outage-analysis-query-bar"
-          @submit.prevent="applyOutageAnalysisQuery"
         >
-          <div class="outage-analysis-line-field">
-            <select v-model="outageAnalysisQueryType" aria-label="查询类型">
-              <option value="line">线路</option>
-            </select>
-            <label>
-              <input v-model.trim="outageAnalysisQueryKeyword" type="search" placeholder="请输入" aria-label="线路查询内容" />
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="10.5" cy="10.5" r="7.5" />
-                <path d="m16 16 5 5" />
-              </svg>
-            </label>
-          </div>
-
           <label class="outage-analysis-region-field">
             <select
               v-model="outageAnalysisSelectedRegionId"
@@ -8511,9 +8605,7 @@ onBeforeUnmount(() => {
               <option v-if="outageAnalysisRegionsError" value="" disabled>区域加载失败</option>
             </select>
           </label>
-
-          <button type="submit" class="outage-analysis-query-button">查询</button>
-        </form>
+        </div>
 
         <label v-if="isOutageUsersPage" class="global-county-field">
           <select v-model="selectedRegion" class="region-select global-county-select">

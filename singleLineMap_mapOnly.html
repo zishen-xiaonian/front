@@ -46,6 +46,87 @@
             box-shadow: 0 0 0 2px rgba(255, 36, 36, 0.45), 0 4px 10px rgba(0, 0, 0, 0.4);
         }
 
+        .outage-analysis-county-count-marker {
+            --metric-color: #22d6df;
+            width: 1px;
+            height: 1px;
+            position: relative;
+            pointer-events: none;
+        }
+
+        .outage-analysis-county-count-box {
+            width: 74px;
+            height: 74px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transform: translate(-50%, -50%);
+            padding: 8px 5px;
+            border: 2px solid rgba(246, 255, 255, 0.96);
+            border-radius: 50%;
+            background:
+                radial-gradient(
+                    circle at 34% 28%,
+                    rgba(255, 255, 255, 0.46),
+                    rgba(255, 255, 255, 0.08) 46%,
+                    rgba(0, 25, 46, 0.5) 100%
+                ),
+                var(--metric-color);
+            box-shadow:
+                inset 0 0 10px rgba(229, 255, 255, 0.26),
+                0 0 0 2px rgba(106, 245, 237, 0.26),
+                0 0 14px var(--metric-color),
+                0 5px 12px rgba(0, 0, 0, 0.45);
+            color: #ecffff;
+            text-align: center;
+            white-space: nowrap;
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+        }
+
+        .outage-analysis-county-count-box::before {
+            content: "";
+            position: absolute;
+            inset: 4px;
+            border: 1px solid rgba(214, 255, 252, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .outage-analysis-county-count-name {
+            display: block;
+            overflow: hidden;
+            color: #d9f7ff;
+            max-width: 62px;
+            font-size: 12px;
+            line-height: 1.15;
+            font-weight: 700;
+            text-overflow: ellipsis;
+            text-shadow: 0 1px 3px rgba(0, 24, 38, 0.9);
+        }
+
+        .outage-analysis-county-count-value {
+            display: block;
+            margin-top: 4px;
+            color: #ffffff;
+            font-size: 17px;
+            line-height: 1;
+            font-weight: 700;
+            text-shadow: 0 0 7px var(--metric-color), 0 1px 3px rgba(0, 28, 40, 0.95);
+        }
+
+        .outage-analysis-county-count-unit {
+            margin-left: 2px;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 400;
+            text-shadow: none;
+        }
+
         .county-popup-content {
             margin: 0;
             padding: 1px 2px;
@@ -325,6 +406,8 @@
     const mapOutageChainLocateMessageType = "MAP_OUTAGE_CHAIN_LOCATE";
     const mapSpaceDeviceLocateMessageType = "MAP_SPACE_DEVICE_LOCATE";
     const amapTokenCapturedMessageType = "AMAP_TOKEN_CAPTURED";
+    const mapOutageAnalysisCountyCountsMessageType = "MAP_OUTAGE_ANALYSIS_COUNTY_COUNTS";
+    const mapOutageAnalysisCountyCountsClearMessageType = "MAP_OUTAGE_ANALYSIS_COUNTY_COUNTS_CLEAR";
     const queryDeviceByIdPath = "/amap-gateway-service/amap-sdk-service/query/disSearch/queryDeviceById";
     const defaultFeederDevType = "xl01";
     const outageChainFeederDevType = "dkx";
@@ -351,8 +434,21 @@
     let pendingSpaceDeviceLocatePayload = null;
     let activeSpaceDistributionDevice = null;
     let outageFocusMarker = null;
+    let outageAnalysisCountyCountMarkers = [];
+    let pendingOutageAnalysisCountyCounts = null;
     let capturedAmapToken = "";
 
+    const outageAnalysisMetricColors = {
+        overThousand: "#ff4050",
+        coalToElectricity: "#12c7a1",
+        importantUser: "#f1a51d",
+        extreme: "#b229d1",
+        exceptional: "#ff2036",
+        severe: "#f34a2e",
+        major: "#ff7c25",
+        medium: "#f2b12a",
+        mild: "#21d898",
+    };
     function isQueryDeviceByIdUrl(url) {
         return String(url || "").includes(queryDeviceByIdPath);
     }
@@ -1546,6 +1642,104 @@
         clearCountyPopup();
     }
 
+    function clearOutageAnalysisCountyCountMarkers() {
+        outageAnalysisCountyCountMarkers.forEach((item) => {
+            const marker = item?.marker || item;
+            if (marker && typeof marker.remove === "function") {
+                marker.remove();
+            }
+        });
+        outageAnalysisCountyCountMarkers = [];
+    }
+
+    function createOutageAnalysisCountyCountMarkerElement(countyStat, metricKey) {
+        const markerNode = document.createElement("div");
+        markerNode.className = "outage-analysis-county-count-marker";
+        markerNode.style.setProperty(
+            "--metric-color",
+            outageAnalysisMetricColors[metricKey] || "#22d6df",
+        );
+
+        const normalizedName = normalizeRegionName(countyStat?.countyName || "");
+
+        const box = document.createElement("div");
+        box.className = "outage-analysis-county-count-box";
+
+        const name = document.createElement("span");
+        name.className = "outage-analysis-county-count-name";
+        name.textContent = normalizedName || countyStat?.countyName || "未知区县";
+
+        const value = document.createElement("strong");
+        value.className = "outage-analysis-county-count-value";
+        value.textContent = String(Math.max(Number(countyStat?.count) || 0, 0));
+
+        const unit = document.createElement("small");
+        unit.className = "outage-analysis-county-count-unit";
+        unit.textContent = String(countyStat?.unit || "户");
+        value.appendChild(unit);
+
+        box.appendChild(name);
+        box.appendChild(value);
+        markerNode.appendChild(box);
+        return markerNode;
+    }
+
+    function applyOutageAnalysisCountyCounts(payload) {
+        pendingOutageAnalysisCountyCounts = payload && typeof payload === "object" ? payload : null;
+        if (!mapInstance) {
+            return;
+        }
+
+        clearOutageAnalysisCountyCountMarkers();
+        const counties = Array.isArray(pendingOutageAnalysisCountyCounts?.counties)
+            ? pendingOutageAnalysisCountyCounts.counties
+            : [];
+        if (counties.length === 0) {
+            return;
+        }
+
+        const MarkerCtor = getMarkerConstructor();
+        if (!MarkerCtor) {
+            return;
+        }
+
+        const metricKey = String(pendingOutageAnalysisCountyCounts?.metric || "").trim();
+        outageAnalysisCountyCountMarkers = counties
+            .map((countyStat) => {
+                const lngLat = normalizeLngLat(countyStat?.lngLat);
+                if (!lngLat) {
+                    return null;
+                }
+
+                const markerElement = createOutageAnalysisCountyCountMarkerElement(
+                    countyStat,
+                    metricKey,
+                );
+                let marker = null;
+                try {
+                    marker = new MarkerCtor({ element: markerElement, anchor: "center" });
+                } catch (_error) {
+                    try {
+                        marker = new MarkerCtor(markerElement);
+                    } catch (_error2) {
+                        return null;
+                    }
+                }
+                if (typeof marker.setLngLat === "function") {
+                    marker.setLngLat(lngLat);
+                }
+                if (typeof marker.addTo === "function") {
+                    marker.addTo(mapInstance);
+                }
+                return {
+                    marker,
+                    node: markerElement,
+                    countyName: countyStat?.countyName || "",
+                };
+            })
+            .filter(Boolean);
+    }
+
     function normalizeRegionName(name) {
         return String(name ?? "")
             .replaceAll("国网", "")
@@ -1855,6 +2049,17 @@
             return;
         }
 
+        if (type === mapOutageAnalysisCountyCountsMessageType) {
+            applyOutageAnalysisCountyCounts(event?.data?.payload || null);
+            return;
+        }
+
+        if (type === mapOutageAnalysisCountyCountsClearMessageType) {
+            pendingOutageAnalysisCountyCounts = null;
+            clearOutageAnalysisCountyCountMarkers();
+            return;
+        }
+
         if (type === mapOutageFeederLocateMessageType) {
             locateOutageFeeder(event?.data?.payload || null);
             return;
@@ -1886,6 +2091,7 @@
         if (pendingCountyStats.length > 0) {
             applyCountyMarkers(pendingCountyStats);
         }
+        applyOutageAnalysisCountyCounts(pendingOutageAnalysisCountyCounts);
         applyCountyFocus(pendingCountyFocusPayload);
         locateOutageFeeder(pendingFeederLocatePayload);
         locateOutageChain(pendingChainLocatePayload);
