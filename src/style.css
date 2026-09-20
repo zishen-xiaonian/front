@@ -10236,6 +10236,10 @@
   gap: 10px;
 }
 
+.sensitive-demand-type-rule-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .sensitive-demand-judgement-rule-grid article {
   min-width: 0;
   min-height: 116px;
@@ -10288,7 +10292,8 @@
 }
 
 @media (max-width: 760px) {
-  .sensitive-demand-judgement-rule-grid {
+  .sensitive-demand-judgement-rule-grid,
+  .sensitive-demand-type-rule-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

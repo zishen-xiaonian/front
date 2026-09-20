@@ -443,6 +443,7 @@
     const mapOutageFeederLocateMessageType = "MAP_OUTAGE_FEEDER_LOCATE";
     const mapOutageChainLocateMessageType = "MAP_OUTAGE_CHAIN_LOCATE";
     const mapSpaceDeviceLocateMessageType = "MAP_SPACE_DEVICE_LOCATE";
+    const mapSpaceDeviceFocusClearMessageType = "MAP_SPACE_DEVICE_FOCUS_CLEAR";
     const amapTokenCapturedMessageType = "AMAP_TOKEN_CAPTURED";
     const mapOutageAnalysisCountyCountsMessageType = "MAP_OUTAGE_ANALYSIS_COUNTY_COUNTS";
     const mapOutageAnalysisCountyCountsClearMessageType = "MAP_OUTAGE_ANALYSIS_COUNTY_COUNTS_CLEAR";
@@ -643,6 +644,15 @@
             } catch (_error) {}
         }
         spaceDeviceMoveEndHandler = null;
+    }
+
+    function clearSpaceDeviceFocus() {
+        spaceDeviceLocateSequence += 1;
+        clearSpaceDeviceFocusSync();
+        pendingSpaceDeviceLocatePayload = null;
+        activeSpaceDistributionDevice = null;
+        clearFeederPopup();
+        clearOutageFocusMarker();
     }
 
     function createOutageFocusMarkerElement(popupDevice = null) {
@@ -2188,6 +2198,11 @@
 
         if (type === mapSpaceDeviceLocateMessageType) {
             locateSpaceDistributionDevice(event?.data?.payload || null);
+            return;
+        }
+
+        if (type === mapSpaceDeviceFocusClearMessageType) {
+            clearSpaceDeviceFocus();
         }
     }
 

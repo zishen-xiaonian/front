@@ -102,6 +102,7 @@ const keyUserMapReadyMessageType = 'KEY_USER_MAP_READY'
 const mapCountyFocusMessageType = 'MAP_COUNTY_FOCUS'
 const mapOutageFeederLocateMessageType = 'MAP_OUTAGE_FEEDER_LOCATE'
 const mapSpaceDeviceLocateMessageType = 'MAP_SPACE_DEVICE_LOCATE'
+const mapSpaceDeviceFocusClearMessageType = 'MAP_SPACE_DEVICE_FOCUS_CLEAR'
 const mapOutageChainLocateMessageType = 'MAP_OUTAGE_CHAIN_LOCATE'
 const amapTokenCapturedMessageType = 'AMAP_TOKEN_CAPTURED'
 const mapOutageAnalysisFiltersMessageType = 'MAP_OUTAGE_ANALYSIS_FILTERS'
@@ -128,6 +129,7 @@ const countyListCityId = import.meta.env.VITE_TANGSHAN_CITY_ID || defaultTangsha
 const mapRef = ref(null)
 const mapFrameRef = ref(null)
 const oneMapAmapToken = ref('')
+let oneMapFocusClearSequence = 0
 let mapInstance = null
 let amapSdk = null
 let eventMarkers = []
@@ -640,6 +642,11 @@ const postMessageToMapFrame = (message) => {
   targetWindow.postMessage(message, window.location.origin)
 }
 
+const clearMapSpaceDeviceFocus = () => {
+  oneMapFocusClearSequence += 1
+  postMessageToMapFrame({ type: mapSpaceDeviceFocusClearMessageType })
+}
+
 const syncOutageAnalysisMapFiltersToMapFrame = () => {
   if (!isOutageAnalysisPage.value || !outageAnalysisMapFilters.value) {
     return
@@ -875,8 +882,9 @@ const syncOneMapMeterBoxId = async (consNo, userDetail = null, popupMode = '') =
     return
   }
 
+  const focusClearSequence = oneMapFocusClearSequence
   const amapToken = oneMapAmapToken.value || await requestOneMapAmapTokenByProbeFly()
-  if (!amapToken) {
+  if (!amapToken || focusClearSequence !== oneMapFocusClearSequence) {
     return
   }
 
@@ -889,6 +897,9 @@ const syncOneMapMeterBoxId = async (consNo, userDetail = null, popupMode = '') =
         '',
     ).trim()
     if (!measPsrId) {
+      return
+    }
+    if (focusClearSequence !== oneMapFocusClearSequence) {
       return
     }
 
@@ -4512,6 +4523,15 @@ const sensitiveDemandAppealTypeMeta = [
   { key: 'category6', field: 'category6_cnt', fieldAliases: ['其他类别'], label: '其他类别', color: '#ff8fa3' },
 ]
 
+const sensitiveDemandTypeRules = [
+  { key: 'category1', label: '客户投诉', color: '#a988ff', rule: '客户对供电服务质量、服务行为或处理结果表示不满，并明确提出投诉、举报或意见。' },
+  { key: 'category2', label: '故障报修', color: '#68d4ff', rule: '客户反映停电、线路或用电设备异常等故障情况，并要求开展抢修处理。' },
+  { key: 'category3', label: '特殊诉求', color: '#87a9ff', rule: '客户提出超出常规业务范围、需要专项协调或个性化处理的诉求。' },
+  { key: 'category4', label: '业务办理', color: '#67f5a6', rule: '客户咨询或申请新装、增容、过户、销户、缴费及信息变更等用电业务。' },
+  { key: 'category5', label: '复电进度', color: '#ffd96b', rule: '客户查询故障抢修进展、预计复电时间或当前供电恢复情况。' },
+  { key: 'category6', label: '其他类别', color: '#ff8fa3', rule: '诉求内容不属于客户投诉、故障报修、特殊诉求、业务办理或复电进度的其他事项。' },
+]
+
 const SENSITIVE_DEMAND_USER_TAG_COLORS = {
   sensitive: '#ff5b7d',
   special: '#ffd23f',
@@ -4588,6 +4608,7 @@ const sensitiveDemandJudgementRuleGroups = [
 
 const showSensitiveDemandAutoDetail = ref(false)
 const showSensitiveDemandJudgementRules = ref(false)
+const showSensitiveDemandTypeRules = ref(false)
 const selectedSensitiveDemandAutoDetailKey = ref('sensitive')
 const selectedSensitiveDemandUserKey = ref('')
 const intelligentAnalysisSelectedUser = ref(null)
@@ -7411,9 +7432,14 @@ const toggleRightPanel = () => {
 
 const switchPageTab = (tab) => {
   const shouldResetOutagePages = activePageTab.value === 'sensitiveDemand' && tab !== 'sensitiveDemand'
+  const shouldClearUserLocateMarker = activePageTab.value === 'sensitiveDemand' && tab === 'outageAnalysis'
   activePageTab.value = ['outageAnalysis', 'outageUsers', 'sensitiveDemand'].includes(tab)
     ? tab
     : 'outageUsers'
+  if (shouldClearUserLocateMarker) {
+    clearMapSpaceDeviceFocus()
+    selectedSensitiveDemandAutoDetailTableUser.value = null
+  }
   if (shouldResetOutagePages) {
     closeCountyWarningPopup()
     handleCloseSpaceDistributionDetailPage()
@@ -8270,6 +8296,13 @@ onBeforeUnmount(() => {
                 <section class="sensitive-demand-module sensitive-demand-top-module">
                   <div class="module-title-row">
                     <h2>诉求归集TOP 5</h2>
+                    <button
+                      type="button"
+                      class="sensitive-demand-judgement-rule-button"
+                      @click.stop="showSensitiveDemandTypeRules = true"
+                    >
+                      类型规则
+                    </button>
                   </div>
 
                   <div class="sensitive-demand-top-content">
@@ -8649,6 +8682,58 @@ onBeforeUnmount(() => {
 
       <section class="dashboard-spacer"></section>
     </main>
+
+    <Teleport to="body">
+      <div
+        v-if="showSensitiveDemandTypeRules"
+        class="sensitive-demand-judgement-rule-backdrop"
+        @click.self="showSensitiveDemandTypeRules = false"
+        @keydown.esc="showSensitiveDemandTypeRules = false"
+      >
+        <section
+          class="sensitive-demand-judgement-rule-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sensitive-demand-type-rule-title"
+        >
+          <header>
+            <h3 id="sensitive-demand-type-rule-title">诉求类型判定规则</h3>
+            <button
+              type="button"
+              aria-label="关闭"
+              @click="showSensitiveDemandTypeRules = false"
+            >
+              ×
+            </button>
+          </header>
+          <div class="sensitive-demand-judgement-rule-body">
+            <p class="sensitive-demand-judgement-rule-intro">
+              系统依据客户诉求内容及受理事项进行分类，具体类型判定规则如下。
+            </p>
+            <section class="sensitive-demand-judgement-rule-group">
+              <div class="sensitive-demand-judgement-rule-group-head">
+                <h4>诉求类型</h4>
+                <p>根据诉求的主要问题和办理目标确定所属类型。</p>
+              </div>
+              <div class="sensitive-demand-judgement-rule-grid sensitive-demand-type-rule-grid">
+                <article
+                  v-for="rule in sensitiveDemandTypeRules"
+                  :key="`demand-type-rule-${rule.key}`"
+                  :style="{ '--judgement-rule-color': rule.color }"
+                >
+                  <i aria-hidden="true"></i>
+                  <strong>{{ rule.label }}</strong>
+                  <p>{{ rule.rule }}</p>
+                </article>
+              </div>
+            </section>
+          </div>
+          <footer>
+            <button type="button" @click="showSensitiveDemandTypeRules = false">知道了</button>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
 
     <Teleport to="body">
       <div
